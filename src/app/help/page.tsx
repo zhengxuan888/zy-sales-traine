@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { useI18n } from '@/lib/i18n';
 
 export default function HelpPage() {
   const [title, setTitle] = useState('');
@@ -10,6 +11,7 @@ export default function HelpPage() {
   const [productType, setProductType] = useState('');
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
+  const { t, toggleLocale } = useI18n();
 
   const handleSubmit = async () => {
     if (!title.trim()) return;
@@ -41,10 +43,9 @@ export default function HelpPage() {
       <div className="min-h-screen bg-[#0a0a0f] flex items-center justify-center px-4">
         <div className="text-center">
           <div className="text-4xl mb-4">{'\u2705'}</div>
-          <h2 className="text-xl font-bold text-white mb-2">Request Submitted!</h2>
-          <p className="text-[#888899] text-sm mb-6">We&apos;ll get back to you with advice soon.</p>
-          <Link href="/" className="px-4 py-2 bg-[#00ff88] text-black text-sm font-semibold rounded-lg">
-            Back to Home
+          <h2 className="text-xl font-bold text-white mb-2">{t('help.submitted')}</h2>
+          <Link href="/" className="mt-4 inline-block px-4 py-2 bg-[#00ff88] text-black text-sm font-semibold rounded-lg">
+            {t('common.back')}
           </Link>
         </div>
       </div>
@@ -60,21 +61,24 @@ export default function HelpPage() {
             <path d="M19 12H5M12 19l-7-7 7-7" />
           </svg>
         </Link>
-        <div>
-          <h1 className="text-lg font-bold text-white">Live Help</h1>
-          <p className="text-xs text-[#888899]">Stuck with a real buyer? Get help.</p>
+        <div className="flex-1">
+          <h1 className="text-lg font-bold text-white">{t('help.title')}</h1>
+          <p className="text-xs text-[#888899]">{t('help.subtitle')}</p>
         </div>
+        <button onClick={toggleLocale} className="px-2 py-1 rounded bg-[#141420] border border-[#1e1e2e] text-[10px] text-[#888899] hover:text-[#00ff88] hover:border-[#00ff88]/30 transition-all">
+          {t('lang.switch')}
+        </button>
       </div>
 
       {/* Form */}
       <div className="space-y-4">
         <div>
-          <label className="text-xs text-[#888899] mb-1 block">What&apos;s the situation? *</label>
+          <label className="text-xs text-[#888899] mb-1 block">Title *</label>
           <input
             type="text"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            placeholder="e.g. Buyer wants meetup, won't accept shipping"
+            placeholder={t('help.placeholder')}
             className="w-full bg-[#141420] border border-[#1e1e2e] rounded-lg px-3 py-2.5 text-sm text-white placeholder-[#555566] focus:outline-none focus:border-[#4488ff]/50"
           />
         </div>
@@ -84,7 +88,7 @@ export default function HelpPage() {
           <textarea
             value={description}
             onChange={(e) => setDescription(e.target.value)}
-            placeholder="Describe the conversation so far, what the buyer said, what you're stuck on..."
+            placeholder={t('help.placeholder')}
             rows={4}
             className="w-full bg-[#141420] border border-[#1e1e2e] rounded-lg px-3 py-2.5 text-sm text-white placeholder-[#555566] focus:outline-none focus:border-[#4488ff]/50 resize-none"
           />
@@ -118,7 +122,7 @@ export default function HelpPage() {
           disabled={loading || !title.trim()}
           className="w-full py-3 bg-[#4488ff] text-white font-semibold rounded-lg text-sm disabled:opacity-30 transition-opacity"
         >
-          {loading ? 'Submitting...' : 'Submit for Help'}
+          {loading ? t('help.submitting') : t('help.submit')}
         </button>
       </div>
     </div>

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useI18n } from '@/lib/i18n';
 
 interface UserStats {
   id: string;
@@ -22,23 +23,11 @@ interface OverallStats {
   completed_today: number;
 }
 
-const dimensionLabels: Record<string, string> = {
-  language_tone: 'Language',
-  conciseness: 'Conciseness',
-  trust_sequence: 'Trust Seq',
-  meetup_handling: 'Meetup',
-  payment_handling: 'Payment',
-  product_info: 'Product',
-  honesty: 'Honesty',
-  negotiation: 'Negotiation',
-  greeting: 'Greeting',
-  closing: 'Closing',
-};
-
 export default function AdminPage() {
   const [users, setUsers] = useState<UserStats[]>([]);
   const [overallStats, setOverallStats] = useState<OverallStats | null>(null);
   const [loading, setLoading] = useState(true);
+  const { t, toggleLocale } = useI18n();
 
   useEffect(() => {
     Promise.all([
@@ -56,7 +45,7 @@ export default function AdminPage() {
   if (loading) {
     return (
       <div className="min-h-screen bg-[#0a0a0f] flex items-center justify-center">
-        <p className="text-[#888899]">Loading dashboard...</p>
+        <p className="text-[#888899]">{t('common.loading')}</p>
       </div>
     );
   }
@@ -70,10 +59,13 @@ export default function AdminPage() {
             <path d="M19 12H5M12 19l-7-7 7-7" />
           </svg>
         </Link>
-        <div>
-          <h1 className="text-lg font-bold text-white">{'\u{1F451}'} Boss Dashboard</h1>
-          <p className="text-xs text-[#888899]">See who can sell and who can&apos;t</p>
+        <div className="flex-1">
+          <h1 className="text-lg font-bold text-white">{'\u{1F451}'} {t('admin.title')}</h1>
+          <p className="text-xs text-[#888899]">{t('admin.subtitle')}</p>
         </div>
+        <button onClick={toggleLocale} className="px-2 py-1 rounded bg-[#141420] border border-[#1e1e2e] text-[10px] text-[#888899] hover:text-[#00ff88] hover:border-[#00ff88]/30 transition-all">
+          {t('lang.switch')}
+        </button>
       </div>
 
       {/* Overall Stats */}
@@ -89,7 +81,7 @@ export default function AdminPage() {
           </div>
           <div className="bg-[#141420] rounded-xl border border-[#1e1e2e] p-3 text-center">
             <div className="text-xl font-bold font-mono text-[#ffaa00]">{overallStats.avg_score || '--'}</div>
-            <div className="text-[10px] text-[#888899]">Avg Score</div>
+            <div className="text-[10px] text-[#888899]">{t('admin.avgScore')}</div>
           </div>
           <div className="bg-[#141420] rounded-xl border border-[#1e1e2e] p-3 text-center">
             <div className="text-xl font-bold font-mono text-[#aa88ff]">{overallStats.completed_today}</div>
@@ -105,17 +97,17 @@ export default function AdminPage() {
         </div>
         {users.length === 0 ? (
           <div className="p-8 text-center text-[#888899] text-sm">
-            No team members yet
+            {t('admin.noData')}
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-[#1e1e2e]">
-                  <th className="text-left px-4 py-2 text-xs text-[#888899] font-medium">Name</th>
-                  <th className="text-center px-3 py-2 text-xs text-[#888899] font-medium">Sessions</th>
-                  <th className="text-center px-3 py-2 text-xs text-[#888899] font-medium">Avg</th>
-                  <th className="text-left px-3 py-2 text-xs text-[#888899] font-medium">Weakest</th>
+                  <th className="text-left px-4 py-2 text-xs text-[#888899] font-medium">{t('admin.employee')}</th>
+                  <th className="text-center px-3 py-2 text-xs text-[#888899] font-medium">{t('admin.practiceCount')}</th>
+                  <th className="text-center px-3 py-2 text-xs text-[#888899] font-medium">{t('admin.avgScore')}</th>
+                  <th className="text-left px-3 py-2 text-xs text-[#888899] font-medium">{t('admin.weakest')}</th>
                   <th className="text-center px-3 py-2 text-xs text-[#888899] font-medium">Last</th>
                 </tr>
               </thead>
@@ -142,7 +134,7 @@ export default function AdminPage() {
                       <div className="flex gap-1 flex-wrap">
                         {user.top3Weaknesses?.slice(0, 3).map((w, i) => (
                           <span key={i} className="text-[10px] px-1.5 py-0.5 rounded bg-red-500/10 text-red-300">
-                            {dimensionLabels[w] || w}
+                            {w}
                           </span>
                         ))}
                       </div>

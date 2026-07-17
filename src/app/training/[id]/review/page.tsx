@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
+import { useI18n } from '@/lib/i18n';
 
 interface CoachIssue {
   id: number;
@@ -32,6 +33,7 @@ export default function ReviewPage() {
   const params = useParams();
   const router = useRouter();
   const trainingId = params.id as string;
+  const { t, toggleLocale } = useI18n();
 
   const [loading, setLoading] = useState(true);
   const [review, setReview] = useState<{
@@ -70,8 +72,8 @@ export default function ReviewPage() {
       <div className="min-h-screen flex items-center justify-center bg-[#0a0a0f]">
         <div className="text-center">
           <div className="text-4xl mb-4">{'\u{1F468}\u200D\u{1F3EB}'}</div>
-          <h2 className="text-xl font-bold text-white mb-2">AI Coach is reviewing...</h2>
-          <p className="text-[#888899] text-sm">Analyzing your conversation</p>
+          <h2 className="text-xl font-bold text-white mb-2">{t('review.loading')}</h2>
+          <p className="text-[#888899] text-sm">{t('review.title')}</p>
         </div>
       </div>
     );
@@ -81,9 +83,9 @@ export default function ReviewPage() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#0a0a0f] px-4">
         <div className="text-center">
-          <p className="text-[#888899]">Failed to load review</p>
+          <p className="text-[#888899]">{t('review.failed')}</p>
           <button onClick={() => router.push('/')} className="mt-4 text-[#00ff88] text-sm">
-            Go Home
+            {t('common.back')}
           </button>
         </div>
       </div>
@@ -120,9 +122,15 @@ export default function ReviewPage() {
   return (
     <div className="min-h-screen bg-[#0a0a0f] px-4 py-6 max-w-2xl mx-auto">
       {/* Header */}
-      <div className="text-center mb-6">
-        <h1 className="text-xl font-bold text-white mb-1">Training Review</h1>
-        <p className="text-xs text-[#888899]">AI Coach Analysis</p>
+      <div className="flex items-center justify-between mb-6">
+        <button onClick={toggleLocale} className="px-2 py-1 rounded bg-[#141420] border border-[#1e1e2e] text-[10px] text-[#888899] hover:text-[#00ff88] hover:border-[#00ff88]/30 transition-all">
+          {t('lang.switch')}
+        </button>
+        <div className="text-center flex-1">
+          <h1 className="text-xl font-bold text-white mb-1">{t('review.title')}</h1>
+          <p className="text-xs text-[#888899]">AI Coach</p>
+        </div>
+        <div className="w-12" />
       </div>
 
       {/* Total Score */}
@@ -175,7 +183,7 @@ export default function ReviewPage() {
 
       {/* Coach Review */}
       <div className="bg-[#141420] rounded-xl border border-[#1e1e2e] p-4 mb-4">
-        <h2 className="text-sm font-semibold text-white mb-2">Coach Review</h2>
+        <h2 className="text-sm font-semibold text-white mb-2">{t('review.suggestions')}</h2>
         <p className="text-sm text-[#ccccdd] leading-relaxed">{coachReview}</p>
       </div>
 
@@ -183,7 +191,7 @@ export default function ReviewPage() {
       {issues.length > 0 && (
         <div className="bg-[#141420] rounded-xl border border-[#1e1e2e] p-4 mb-4">
           <h2 className="text-sm font-semibold text-white mb-3">
-            Issues Found ({issues.length})
+            {t('review.issues')} ({issues.length})
           </h2>
           <div className="space-y-3">
             {issues.map((issue) => (
@@ -223,7 +231,7 @@ export default function ReviewPage() {
       {/* Examples */}
       {examples.length > 0 && (
         <div className="bg-[#141420] rounded-xl border border-[#1e1e2e] p-4 mb-4">
-          <h2 className="text-sm font-semibold text-white mb-3">Example Responses</h2>
+          <h2 className="text-sm font-semibold text-white mb-3">{t('review.examples')}</h2>
           <div className="space-y-4">
             {examples.map((ex, i) => (
               <div key={i} className="space-y-2">
@@ -251,13 +259,13 @@ export default function ReviewPage() {
           onClick={() => router.push('/training/new')}
           className="flex-1 py-3 bg-[#00ff88] text-black font-semibold rounded-lg text-sm"
         >
-          Practice Again
+          {t('review.retry')}
         </button>
         <button
           onClick={() => router.push('/')}
           className="flex-1 py-3 bg-[#141420] border border-[#1e1e2e] text-white font-semibold rounded-lg text-sm"
         >
-          Home
+          {t('review.backHome')}
         </button>
       </div>
     </div>

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useI18n } from '@/lib/i18n';
 
 interface CaseItem {
   id: string;
@@ -17,6 +18,7 @@ interface CaseItem {
 export default function CasesPage() {
   const [cases, setCases] = useState<CaseItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const { t, toggleLocale } = useI18n();
 
   useEffect(() => {
     fetch('/api/cases')
@@ -37,22 +39,24 @@ export default function CasesPage() {
             <path d="M19 12H5M12 19l-7-7 7-7" />
           </svg>
         </Link>
-        <div>
-          <h1 className="text-lg font-bold text-white">Real Cases</h1>
-          <p className="text-xs text-[#888899]">Learn from real conversations</p>
+        <div className="flex-1">
+          <h1 className="text-lg font-bold text-white">{t('cases.title')}</h1>
+          <p className="text-xs text-[#888899]">{t('cases.subtitle')}</p>
         </div>
+        <button onClick={toggleLocale} className="px-2 py-1 rounded bg-[#141420] border border-[#1e1e2e] text-[10px] text-[#888899] hover:text-[#00ff88] hover:border-[#00ff88]/30 transition-all">
+          {t('lang.switch')}
+        </button>
       </div>
 
       {/* Cases List */}
       {loading ? (
         <div className="text-center py-12">
-          <p className="text-[#888899]">Loading cases...</p>
+          <p className="text-[#888899]">{t('common.loading')}</p>
         </div>
       ) : cases.length === 0 ? (
         <div className="text-center py-12">
           <div className="text-4xl mb-4">{'\u{1F4DA}'}</div>
-          <p className="text-[#888899] mb-4">No cases yet</p>
-          <p className="text-xs text-[#555566]">Upload real conversations to practice with</p>
+          <p className="text-[#888899] mb-4">{t('cases.empty')}</p>
         </div>
       ) : (
         <div className="space-y-3">
@@ -77,7 +81,7 @@ export default function CasesPage() {
               )}
               <div className="flex items-center gap-3 text-[10px] text-[#555566]">
                 <span>{c.product_type}</span>
-                <span>{c.practice_count} practices</span>
+                <span>{c.practice_count} {t('cases.practiceCount')}</span>
               </div>
               {c.tags && c.tags.length > 0 && (
                 <div className="flex gap-1 mt-2">

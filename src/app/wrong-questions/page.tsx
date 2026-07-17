@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useI18n } from '@/lib/i18n';
 
 interface WrongQuestion {
   id: string;
@@ -15,17 +16,6 @@ interface WrongQuestion {
   practice_count: number;
 }
 
-const categoryLabels: Record<string, string> = {
-  language_tone: 'Language & Tone',
-  conciseness: 'Conciseness',
-  trust_sequence: 'Trust Sequence',
-  meetup_handling: 'Meetup Handling',
-  payment_handling: 'Payment',
-  product_info: 'Product Info',
-  honesty: 'Honesty',
-  negotiation: 'Negotiation',
-};
-
 export default function WrongQuestionsPage() {
   const [data, setData] = useState<{
     all: WrongQuestion[];
@@ -35,6 +25,7 @@ export default function WrongQuestionsPage() {
   } | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const { t, toggleLocale } = useI18n();
 
   useEffect(() => {
     fetch('/api/wrong-questions?userId=default')
@@ -59,25 +50,27 @@ export default function WrongQuestionsPage() {
             <path d="M19 12H5M12 19l-7-7 7-7" />
           </svg>
         </Link>
-        <div>
-          <h1 className="text-lg font-bold text-white">Mistakes Review</h1>
+        <div className="flex-1">
+          <h1 className="text-lg font-bold text-white">{t('wrong.title')}</h1>
           <p className="text-xs text-[#888899]">
-            {data ? `${data.total} mistakes to practice` : 'Loading...'}
+            {data ? `${data.total} ${t('wrong.subtitle').toLowerCase()}` : t('common.loading')}
           </p>
         </div>
+        <button onClick={toggleLocale} className="px-2 py-1 rounded bg-[#141420] border border-[#1e1e2e] text-[10px] text-[#888899] hover:text-[#00ff88] hover:border-[#00ff88]/30 transition-all">
+          {t('lang.switch')}
+        </button>
       </div>
 
       {loading ? (
         <div className="text-center py-12">
-          <p className="text-[#888899]">Loading...</p>
+          <p className="text-[#888899]">{t('common.loading')}</p>
         </div>
       ) : !data || data.total === 0 ? (
         <div className="text-center py-12">
           <div className="text-4xl mb-4">{'\u2705'}</div>
-          <p className="text-[#888899]">No mistakes recorded yet</p>
-          <p className="text-xs text-[#555566] mt-2">Complete a training session to see your mistakes here</p>
+          <p className="text-[#888899]">{t('wrong.empty')}</p>
           <Link href="/training/new" className="mt-4 inline-block px-4 py-2 bg-[#00ff88] text-black text-sm font-semibold rounded-lg">
-            Start Training
+            {t('home.menu.training')}
           </Link>
         </div>
       ) : (
@@ -90,7 +83,7 @@ export default function WrongQuestionsPage() {
                 !selectedCategory ? 'bg-[#00ff88] text-black' : 'bg-[#141420] text-[#888899] border border-[#1e1e2e]'
               }`}
             >
-              All ({data.total})
+              {t('wrong.all')} ({data.total})
             </button>
             {data.categories.map(cat => (
               <button
@@ -100,7 +93,7 @@ export default function WrongQuestionsPage() {
                   selectedCategory === cat ? 'bg-[#00ff88] text-black' : 'bg-[#141420] text-[#888899] border border-[#1e1e2e]'
                 }`}
               >
-                {categoryLabels[cat] || cat} ({data.grouped[cat]?.length || 0})
+                {cat} ({data.grouped[cat]?.length || 0})
               </button>
             ))}
           </div>
@@ -108,33 +101,35 @@ export default function WrongQuestionsPage() {
           {/* Questions List */}
           <div className="space-y-3">
             {filteredQuestions.map((q) => (
-              <div
-                key={q.id}
-                className="bg-[#141420] rounded-xl border border-[#1e1e2e] p-4"
-              >
+              <div key={q.id} className="bg-[#141420] rounded-xl border border-[#1e1e2e] p-4">
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs px-2 py-0.5 rounded-full bg-red-500/10 text-red-300">
-                    {categoryLabels[q.category] || q.category}
+                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#1e1e2e] text-[#888899]">
+                    {q.category}
                   </span>
-                  <span className="text-[10px] text-[#555566]">
-                    Practiced {q.practice_count}x
+                  <span className={`text-[10px] ${q.is_practiced ? 'text-[#00ff88]' : 'text-[#ffaa00]'}`}>
+                    {q.is_practiced ? t('wrong.practiced') : t('wrong.notPracticed')}
                   </span>
                 </div>
-                {q.user_response && (
-                  <div className="mb-2">
-                    <div className="text-[10px] text-red-400 mb-1">Your response:</div>
-                    <div className="text-xs text-[#ccccdd] bg-red-500/5 rounded p-2">{q.user_response}</div>
+                <div className="space-y-2 text-xs">
+                  <div>
+                    <span className="text-[#888899]">{t('wrong.originalMessage')}: </span>
+                    <span className="text-[#ccccdd]">{q.original_message}</span>
                   </div>
-                )}
-                {q.ideal_response && (
-                  <div className="mb-2">
-                    <div className="text-[10px] text-[#00ff88] mb-1">Ideal response:</div>
-                    <div className="text-xs text-[#ccccdd] bg-green-500/5 rounded p-2">{q.ideal_response}</div>
+                  <div>
+                    <span className="text-[#888899]">{t('wrong.yourResponse')}: </span>
+                    <span className="text-[#ff8888]">{q.user_response}</span>
                   </div>
-                )}
-                {q.explanation && (
-                  <p className="text-xs text-[#888899] italic">{q.explanation}</p>
-                )}
+                  <div>
+                    <span className="text-[#888899]">{t('wrong.idealResponse')}: </span>
+                    <span className="text-[#00ff88]">{q.ideal_response}</span>
+                  </div>
+                  {q.explanation && (
+                    <div className="mt-2 pt-2 border-t border-[#1e1e2e]">
+                      <span className="text-[#888899]">{t('wrong.explanation')}: </span>
+                      <span className="text-[#aaaaaa]">{q.explanation}</span>
+                    </div>
+                  )}
+                </div>
               </div>
             ))}
           </div>
