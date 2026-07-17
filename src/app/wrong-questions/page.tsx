@@ -28,7 +28,7 @@ export default function WrongQuestionsPage() {
   const { t, toggleLocale } = useI18n();
 
   useEffect(() => {
-    fetch('/api/wrong-questions?userId=default')
+    fetch('/api/wrong-questions')
       .then(r => r.json())
       .then(d => {
         if (d.success) setData(d.data);

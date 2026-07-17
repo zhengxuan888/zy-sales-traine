@@ -7,7 +7,10 @@ export async function GET(request: NextRequest) {
     const userId = searchParams.get('userId');
 
     if (!userId) {
-      return NextResponse.json({ success: false, error: 'userId is required' }, { status: 400 });
+      return NextResponse.json({
+        success: true,
+        data: { totalSessions: 0, avgScore: 0, weaknessRanking: [], recentTrend: [], latestHealthReport: null },
+      });
     }
 
     const client = getClient();

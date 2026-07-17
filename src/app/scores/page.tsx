@@ -22,7 +22,7 @@ export default function ScoresPage() {
   const { t, toggleLocale } = useI18n();
 
   useEffect(() => {
-    fetch('/api/scores?userId=default')
+    fetch('/api/scores')
       .then(r => r.json())
       .then(d => {
         if (d.success) setData(d.data);
