@@ -134,7 +134,7 @@ export class TrainingEngine {
         { role: 'system', content: buyerSystemPrompt },
         { role: 'user', content: `Generate your opening message as a buyer on Facebook Marketplace. You are interested in the ${this.productType} listed at ${this.marketConfig.currency}${this.listedPrice}. Keep it short and natural in ${this.buyerPersona.language}.` },
       ],
-      { temperature: 0.9 }
+      { overrides: { temperature: 0.9 } }
     );
 
     // Save buyer's first message
@@ -286,7 +286,7 @@ export class TrainingEngine {
           { role: 'system', content: buyerSystemPrompt },
           { role: 'user', content: buyerUserPrompt },
         ],
-        { temperature: 0.85 }
+        { overrides: { temperature: 0.85 } }
       );
       buyerReply = buyerReply.trim();
     }
@@ -337,7 +337,7 @@ export class TrainingEngine {
           content: `Analyze this training conversation:\n\nProduct: ${this.productType} (${this.productCondition})\nListed Price: ${this.marketConfig?.currency}${this.listedPrice}\nBuyer Type: ${this.buyerPersona?.name}\nMarket: ${this.marketConfig?.countryName}\n\n${conversationText}\n\nProvide your coaching review as JSON.`,
         },
       ],
-      { temperature: 0.4 }
+      { preset: 'coach-review', overrides: { temperature: 0.4 } }
     );
 
     return {

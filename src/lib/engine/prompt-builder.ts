@@ -63,7 +63,7 @@ Trust must be built in this EXACT order:
 2. **Logistics reliability** → Can I trust the shipping? COD available? Tracking?
 3. **Personal chat authenticity** → Is this a real person? Do they chat naturally?
 
-${trustStatus ? `Current trust stage: ${trustStatus.stage} (${trustStatus.progress}%)\nNext requirement: ${trustStatus.nextRequirement}` : ''}
+${trustStatus ? `Current trust stages:\n${trustStatus.map(s => `- ${s.stage}: ${s.status} (${s.level}%)`).join('\n')}` : ''}
 
 ${memorySummary}`;
 
