@@ -67,45 +67,11 @@ export default function TrainingPage() {
       setStarting(true);
       setError('');
 
-      // Get available personas and markets
-      const [personasRes, marketsRes] = await Promise.all([
-        fetch('/api/cases?limit=1'), // Just to check API is alive
-        fetch('/api/training/history?limit=1'),
-      ]);
-
-      if (!personasRes.ok) throw new Error('API unavailable');
-      void marketsRes;
-
-      // Use default persona and market (first available)
-      const personaRes = await fetch('/api/cases');
-      const personaData = await personaRes.json();
-      const cases = personaData.data || [];
-
-      // Pick a random case's persona/market for variety
-      const randomCase = cases[Math.floor(Math.random() * Math.min(cases.length, 20))];
-      const buyerPersonaId = randomCase?.buyer_persona_id;
-      const marketConfigId = randomCase?.market_config_id;
-
-      if (!buyerPersonaId || !marketConfigId) {
-        // Fallback: query directly
-        const res = await fetch('/api/training/start', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            buyerPersonaId: '690ea05d-592e-455a-a721-5d593a02c36f', // hesitant
-            marketConfigId: '5ccea883-3c19-4e3f-bd99-c3ae1d32e063', // spain
-            }),
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.message || data.error || 'Failed to start');
-        handleStartResponse(data);
-        return;
-      }
-
+      // Directly call training start - backend handles all fallbacks
       const res = await fetch('/api/training/start', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ buyerPersonaId, marketConfigId }),
+        body: JSON.stringify({}),
       });
 
       const data = await res.json();
@@ -358,7 +324,10 @@ export default function TrainingPage() {
             {error && (
               <div className="bg-[#ff4444]/10 border border-[#ff4444]/30 rounded-lg px-4 py-3 text-[#ff4444] text-sm">
                 {error}
-                <button onClick={() => setError('')} className="ml-2 underline text-xs">Dismiss</button>
+                <div className="flex gap-2 mt-2">
+                  <button onClick={() => { setError(''); startNewTraining(); }} className="bg-[#00ff88]/20 text-[#00ff88] px-3 py-1 rounded text-xs font-medium hover:bg-[#00ff88]/30">Retry</button>
+                  <button onClick={() => setError('')} className="underline text-xs text-[#888899]">Dismiss</button>
+                </div>
               </div>
             )}
 
