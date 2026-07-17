@@ -36,6 +36,7 @@ export default function ReviewPage() {
   const { t, toggleLocale } = useI18n();
 
   const [loading, setLoading] = useState(true);
+  const [retraining, setRetraining] = useState(false);
   const [review, setReview] = useState<{
     finalScore: {
       ruleScore: number;
@@ -66,6 +67,26 @@ export default function ReviewPage() {
     };
     fetchReview();
   }, [trainingId]);
+
+  const handleRetrain = async () => {
+    setRetraining(true);
+    try {
+      // Start a new training session with default settings
+      const res = await fetch('/api/training/start', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: 'default' }),
+      });
+      const data = await res.json();
+      if (data.success && data.sessionId) {
+        router.push(`/training/${data.sessionId}`);
+      } else {
+        router.push('/training/new');
+      }
+    } catch {
+      router.push('/training/new');
+    }
+  };
 
   if (loading) {
     return (
@@ -256,10 +277,11 @@ export default function ReviewPage() {
       {/* Actions */}
       <div className="flex gap-3 mt-6 mb-8">
         <button
-          onClick={() => router.push('/training/new')}
-          className="flex-1 py-3 bg-[#00ff88] text-black font-semibold rounded-lg text-sm"
+          onClick={handleRetrain}
+          disabled={retraining}
+          className="flex-1 py-3 bg-[#00ff88] text-black font-semibold rounded-lg text-sm disabled:opacity-50"
         >
-          {t('review.retry')}
+          {retraining ? 'Starting...' : t('review.retry')}
         </button>
         <button
           onClick={() => router.push('/')}

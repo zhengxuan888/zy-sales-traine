@@ -313,24 +313,72 @@ export class LLMAdapter {
   }
 
   /**
-   * Invoke LLM with unified interface
+   * Invoke LLM with unified interface + timeout + retry + fallback
    */
   async invoke(
     messages: LLMMessage[],
     options: LLMInvokeOptions = {}
   ): Promise<string> {
     const params = this.resolveParams(options);
+    const timeoutMs = 30000;
+    const maxRetries = 1;
+    let lastError: Error | null = null;
 
-    const response = await this.client.invoke(
-      messages.map(m => ({ role: m.role, content: m.content })),
-      {
-        model: params.model,
-        temperature: params.temperature,
-        thinking: params.thinking,
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      try {
+        const response = await Promise.race([
+          this.client.invoke(
+            messages.map(m => ({ role: m.role, content: m.content })),
+            {
+              model: params.model,
+              temperature: params.temperature,
+              thinking: params.thinking,
+            }
+          ),
+          new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error(`LLM timeout after ${timeoutMs}ms`)), timeoutMs)
+          ),
+        ]);
+        return response.content;
+      } catch (err) {
+        lastError = err instanceof Error ? err : new Error(String(err));
+        console.warn(`[LLM] invoke attempt ${attempt + 1} failed:`, lastError.message);
+        if (attempt < maxRetries) {
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        }
       }
-    );
+    }
 
-    return response.content;
+    // All retries exhausted - return fallback
+    console.error(`[LLM] invoke failed after ${maxRetries + 1} attempts, using fallback`);
+    return this.getFallbackResponse(messages);
+  }
+
+  /**
+   * Fallback responses when LLM is unavailable
+   */
+  private getFallbackResponse(messages: LLMMessage[]): string {
+    const sysPrompt = messages.find(m => m.role === 'system')?.content || '';
+    if (/buyer|comprador|kupuj|acheteur|kupec/i.test(sysPrompt)) {
+      if (/spanish|espa[ñn]ol/i.test(sysPrompt)) return 'Vale, entendido. Cuéntame más.';
+      if (/polish|polski/i.test(sysPrompt)) return 'OK, rozumiem. Powiedz mi więcej.';
+      if (/czech|čeština/i.test(sysPrompt)) return 'Dobrý den, rozumím. Řekněte mi více.';
+      if (/portuguese|português/i.test(sysPrompt)) return 'Ok, entendi. Me conta mais.';
+      if (/greek|ελληνικά/i.test(sysPrompt)) return 'Εντάξει, κατάλαβα. Πες μου περισσότερα.';
+      if (/croatian|hrvatski/i.test(sysPrompt)) return 'U redu, razumijem. Reci mi više.';
+      return 'OK, I understand. Tell me more.';
+    }
+    if (/coach|entrenador/i.test(sysPrompt)) {
+      return JSON.stringify({
+        overallScore: 50,
+        strengths: ['Attempted to engage with buyer'],
+        improvements: ['Provide specific product details', 'Use COD payment', 'Avoid customer service language'],
+        criticalMistakes: [],
+        exampleResponses: [],
+        summary: 'AI temporarily unavailable. Review your chat manually.',
+      });
+    }
+    return JSON.stringify({ score: 50, reasoning: 'AI temporarily unavailable.' });
   }
 
   /**

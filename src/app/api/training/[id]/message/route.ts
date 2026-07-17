@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getClient } from '@/lib/db';
 import { TrainingEngine } from '@/lib/engine';
+import { checkSellerMessage } from '@/lib/engine/rule-engine';
+import { validateBuyerResponse, getFallbackBuyerResponse } from '@/lib/engine/response-validator';
+import type { BuyerMemory } from '@/lib/engine/types';
 
 export async function POST(
   request: NextRequest,
@@ -9,119 +12,200 @@ export async function POST(
   try {
     const { id } = await params;
     const body = await request.json();
-    const { message } = body;
+    const { content } = body;
 
-    if (!message?.trim()) {
-      return NextResponse.json({ success: false, error: 'Message is required' }, { status: 400 });
+    if (!content || typeof content !== 'string' || content.trim().length === 0) {
+      return NextResponse.json(
+        { code: 'INVALID_INPUT', message: 'Message content is required', detail: null },
+        { status: 400 }
+      );
     }
 
     const client = getClient();
 
-    // Load training session
-    const { data: training, error } = await client
+    // Get training session
+    const { data: sessionData, error: sessionError } = await client
       .from('training_history')
       .select('*')
       .eq('id', id)
-      .maybeSingle();
-    if (error) throw error;
-    if (!training) {
-      return NextResponse.json({ success: false, error: 'Training not found' }, { status: 404 });
+      .single();
+
+    if (sessionError || !sessionData) {
+      return NextResponse.json(
+        { code: 'SESSION_NOT_FOUND', message: 'Training session not found', detail: null },
+        { status: 404 }
+      );
     }
 
-    // Load conversation history
-    const { data: messages, error: msgError } = await client
+    // Get market config for validation
+    let marketConfig = null;
+    let marketConfigData: import('@/lib/engine/types').MarketConfigData | null = null;
+    if (sessionData.market_config_id) {
+      const { data: marketData } = await client
+        .from('market_config')
+        .select('*')
+        .eq('id', sessionData.market_config_id)
+        .single();
+      marketConfig = marketData;
+      if (marketData) {
+        marketConfigData = {
+          countryCode: marketData.country_code || 'ES',
+          countryName: marketData.country_name || 'Spain',
+          language: marketData.language || 'es',
+          currency: marketData.currency || 'EUR',
+          avgPriceRatio: Number(marketData.avg_price_ratio) || 1.0,
+          meetupPreference: marketData.meetup_preference || 'avoid',
+          shippingSupported: marketData.shipping_supported !== false,
+          codSupported: marketData.cod_supported !== false,
+        };
+      }
+    }
+
+    // Get buyer persona for language
+    let marketLanguage = 'es';
+    if (marketConfig) {
+      marketLanguage = marketConfig.language || 'es';
+    }
+
+    // Get existing messages
+    const { data: existingMessages } = await client
       .from('chat_message')
       .select('*')
       .eq('training_id', id)
       .order('message_order', { ascending: true });
-    if (msgError) throw msgError;
 
-    // Load buyer persona
-    const { data: persona } = await client
-      .from('buyer_persona')
-      .select('*')
-      .eq('id', training.buyer_persona_id)
-      .maybeSingle();
-
-    // Load market config
-    const { data: market } = await client
-      .from('market_config')
-      .select('*')
-      .eq('id', training.market_config_id)
-      .maybeSingle();
-
-    // Load scenario
-    const { data: scenario } = await client
-      .from('scenario_config')
-      .select('*')
-      .eq('id', training.scenario_id)
-      .maybeSingle();
-
+    // Load engine state from session
     const engine = new TrainingEngine();
     engine.loadState({
-      id: training.id,
-      buyerPersona: persona as unknown as Record<string, unknown> | null,
-      marketConfig: market as unknown as Record<string, unknown> | null,
-      scenarioConfig: scenario as unknown as Record<string, unknown> | null,
-      conversationHistory: (messages || []) as unknown as Array<Record<string, unknown>>,
-      currentTurn: messages?.length || 0,
-      memory: (training.memory as Record<string, unknown>) || undefined,
-      currentState: (training.current_state as string) || 'GREETING',
-      deductions: (training.deductions as Array<{ reason: string; points: number; dimension: string }>) || undefined,
-      scoreSignals: (training.score_signals as Record<string, unknown>) || undefined,
+      id: sessionData.id,
+      buyerPersona: sessionData.buyer_persona_id ? { id: sessionData.buyer_persona_id } : null,
+      marketConfig: sessionData.market_config_id ? { id: sessionData.market_config_id } : null,
+      scenarioConfig: sessionData.scenario_id ? { id: sessionData.scenario_id } : null,
+      conversationHistory: (existingMessages || []).map((m: Record<string, unknown>) => m),
+      currentTurn: (existingMessages?.length || 0),
+      memory: sessionData.memory || undefined,
+      currentState: sessionData.current_state || undefined,
+      deductions: sessionData.deductions || undefined,
+      scoreSignals: sessionData.score_signals || undefined,
     });
 
-    const result = await engine.processMessage(message);
+    // Process message through engine
+    const result = await engine.processMessage(content.trim());
 
-    // Save seller message to DB
-    const sellerOrder = (messages?.length || 0) + 1;
+    // Save user message
+    const userMsgOrder = (existingMessages?.length || 0) + 1;
     await client.from('chat_message').insert({
       training_id: id,
       role: 'seller',
-      content: message,
-      message_order: sellerOrder,
-      score_signals: result.scoreSignals,
-      deduction_points: result.deductions,
-      is_flagged: result.deductions.length > 0,
+      content: content.trim(),
+      message_order: userMsgOrder,
     });
 
-    // Save buyer response to DB
-    const buyerOrder = sellerOrder + 1;
+    // Run Rule Engine on seller message for real-time scoring
+    const defaultTrust = { level: 0, evidence: [] };
+    const rawMemory = (sessionData.memory as unknown as BuyerMemory) || {};
+    const safeMemory: BuyerMemory = {
+      productAuthenticity: rawMemory.productAuthenticity || defaultTrust,
+      logisticsReliability: rawMemory.logisticsReliability || defaultTrust,
+      personalChatAuth: rawMemory.personalChatAuth || defaultTrust,
+      priceSatisfaction: rawMemory.priceSatisfaction || defaultTrust,
+      conditionClarity: rawMemory.conditionClarity || defaultTrust,
+      sellerCredibility: rawMemory.sellerCredibility || defaultTrust,
+      overallTrust: rawMemory.overallTrust ?? 0,
+      purchaseIntent: rawMemory.purchaseIntent ?? 50,
+      mood: rawMemory.mood ?? 'neutral',
+    };
+    const ruleResult = checkSellerMessage(
+      content.trim(),
+      userMsgOrder,
+      result.state,
+      safeMemory,
+      existingMessages || []
+    );
+
+    // Save user message deductions if any
+    if (ruleResult.deductions.length > 0) {
+      await client.from('chat_message').update({
+        deductions: ruleResult.deductions,
+      }).eq('training_id', id).eq('message_order', userMsgOrder);
+    }
+
+    // Post-validate AI buyer response
+    let buyerContent = result.buyerResponse;
+    const maxValidationRetries = 2;
+    let validationRetries = 0;
+
+    while (validationRetries < maxValidationRetries) {
+      const validation = validateBuyerResponse(buyerContent, marketConfigData);
+      if (validation.valid) break;
+
+      console.warn(`[Validation] AI response failed validation (attempt ${validationRetries + 1}):`, validation.reasons);
+      validationRetries++;
+
+      // Retry LLM generation
+      try {
+        const retryResult = await engine.processMessage(content.trim());
+        buyerContent = retryResult.buyerResponse;
+      } catch {
+        // If retry fails, use fallback
+        buyerContent = getFallbackBuyerResponse(marketConfigData);
+        break;
+      }
+    }
+
+    // Final validation - if still invalid, use fallback
+    const finalValidation = validateBuyerResponse(buyerContent, marketConfigData);
+    if (!finalValidation.valid) {
+      buyerContent = getFallbackBuyerResponse(marketConfigData);
+    }
+
+    // Save AI message
+    const aiMsgOrder = userMsgOrder + 1;
     await client.from('chat_message').insert({
       training_id: id,
       role: 'buyer',
-      content: result.buyerResponse,
-      message_order: buyerOrder,
-      language: persona?.language || 'es',
+      content: buyerContent,
+      message_order: aiMsgOrder,
     });
 
-    // Update training state
-    await client
-      .from('training_history')
-      .update({
-        current_state: engine.getCurrentState(),
-        memory: engine.getMemory() as unknown as Record<string, unknown>,
-        deductions: engine.getDeductions(),
-        score_signals: engine.getScoreSignals(),
-        total_messages: buyerOrder,
-      })
-      .eq('id', id);
+    // Calculate running score
+    const allDeductions = (existingMessages || []).reduce((acc: Array<{points: number; dimension: string}>, m: { deductions: Array<{points: number; dimension: string}> | null }) => {
+      if (m.deductions) acc.push(...m.deductions);
+      return acc;
+    }, []);
+    allDeductions.push(...ruleResult.deductions);
+    const totalDeductions = allDeductions.reduce((sum: number, d: { points: number }) => sum + d.points, 0);
+    const runningScore = Math.max(0, 100 - totalDeductions);
+
+    // Update session
+    await client.from('training_history').update({
+      current_state: result.state,
+      updated_at: new Date().toISOString(),
+    }).eq('id', id);
 
     return NextResponse.json({
       success: true,
       data: {
-        buyerResponse: result.buyerResponse,
-        deductions: result.deductions,
-        scoreSignals: result.scoreSignals,
-        state: result.state,
+        aiMessage: buyerContent,
+        newState: result.state,
+        scoreSignals: ruleResult.signals,
+        deductions: ruleResult.deductions.map(d => ({
+          dimension: d.dimension,
+          points: d.points,
+          reason: d.reason,
+        })),
+        runningScore,
         isFlagged: result.isFlagged,
-        messageOrder: buyerOrder,
       },
     });
   } catch (error) {
-    console.error('Failed to process message:', error);
+    console.error('[Message] Error:', error);
     return NextResponse.json(
-      { success: false, error: error instanceof Error ? error.message : 'Unknown error' },
+      {
+        code: 'INTERNAL_ERROR',
+        message: 'Failed to process message',
+        detail: error instanceof Error ? error.message : 'Unknown error',
+      },
       { status: 500 }
     );
   }
