@@ -67,19 +67,23 @@ export default function TrainingPage() {
       const data = await res.json();
       if (!data.success) throw new Error(data.error);
 
+      const session = data.data || data;
+
       setMessages([{
         id: 'first',
         role: 'buyer',
-        content: data.firstMessage,
+        content: session.buyerGreeting || 'Hi! Is this still available?',
         messageOrder: 1,
       }]);
-      setBuyerPersona(data.buyerPersona);
-      setScenario(data.scenario);
+      setBuyerPersona(session.scenario?.name || '');
+      setScenario(session.scenario?.productType || '');
       setSessionStarted(true);
       setMessageCount(1);
 
       // Redirect to the actual training ID URL
-      window.history.replaceState(null, '', `/training/${data.trainingId}`);
+      if (session.trainingId) {
+        window.history.replaceState(null, '', `/training/${session.trainingId}`);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to start session');
     } finally {
@@ -115,29 +119,29 @@ export default function TrainingPage() {
       const res = await fetch(`/api/training/${trainingId}/message`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content: sellerMsg, language: 'es' }),
+        body: JSON.stringify({ message: sellerMsg, language: 'es' }),
       });
       const data = await res.json();
       if (!data.success) throw new Error(data.error);
+
+      const resp = data.data || data;
 
       // Add buyer reply
       const buyerMessage: Message = {
         id: `buyer-${Date.now()}`,
         role: 'buyer',
-        content: data.buyerReply,
-        messageOrder: messageCount + 2,
-        scoreSignals: data.scoreSignals,
-        deductionPoints: data.deductionPoints,
-        isFlagged: data.isFlagged,
+        content: resp.buyerResponse || '...',
+        messageOrder: resp.messageOrder || messageCount + 2,
+        scoreSignals: resp.scoreSignals,
+        deductionPoints: resp.deductions,
+        isFlagged: resp.isFlagged,
       };
       setMessages(prev => [...prev, buyerMessage]);
       setMessageCount(prev => prev + 1);
-      setCurrentScore(data.currentScore);
-      setConversationState(data.conversationState);
 
       // Add deduction alerts
-      if (data.deductionPoints && data.deductionPoints.length > 0) {
-        const newAlerts: DeductionAlert[] = data.deductionPoints.map((d: {
+      if (resp.deductions && resp.deductions.length > 0) {
+        const newAlerts: DeductionAlert[] = resp.deductions.map((d: {
           dimension: string; points: number; reason: string; severity: string;
         }, i: number) => ({
           id: `alert-${Date.now()}-${i}`,
@@ -152,7 +156,7 @@ export default function TrainingPage() {
       }
 
       // Check if conversation ended
-      if (data.conversationState === 'COMPLETED' || data.conversationState === 'GHOSTED') {
+      if (resp.state === 'COMPLETED' || resp.state === 'GHOSTED') {
         setTimeout(() => {
           router.push(`/training/${trainingId}/review`);
         }, 2000);

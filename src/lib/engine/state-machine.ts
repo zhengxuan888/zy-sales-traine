@@ -110,8 +110,8 @@ export function detectStateTransition(
   const config = STATE_CONFIGS[currentState];
   const msgLower = buyerMessage.toLowerCase();
 
-  // Check for ghosting signals
-  if (currentState !== 'GHOSTED' && currentState !== 'COMPLETED') {
+  // Check for ghosting signals (only after at least 4 messages to avoid premature ghosting)
+  if (currentState !== 'GHOSTED' && currentState !== 'COMPLETED' && _messageHistory.length >= 4) {
     if (buyerMemory.purchaseIntent < 20 && buyerMemory.overallTrust < 30) {
       return 'GHOSTED';
     }
