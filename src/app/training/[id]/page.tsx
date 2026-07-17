@@ -110,10 +110,10 @@ export default function TrainingPage() {
   async function loadExistingSession() {
     try {
       setStarting(true);
-      const res = await fetch(`/api/training/history?limit=50`);
+      // Direct lookup by session ID
+      const res = await fetch(`/api/training/history?sessionId=${sessionId}`);
       const data = await res.json();
-      const sessions = data.data || [];
-      const session = sessions.find((s: { id: string }) => s.id === sessionId);
+      const session = data.data;
 
       if (!session) {
         setError('Session not found');
@@ -124,11 +124,28 @@ export default function TrainingPage() {
       setCurrentState(session.current_state || 'INITIAL');
       setBuyerPersona(session.buyer_persona_name ? { name: session.buyer_persona_name, difficulty: 'medium' } : null);
 
-      // Load messages from chat_message table
-      const msgRes = await fetch(`/api/training/history?limit=1`);
-      void msgRes;
+      // Load chat messages for this session
+      try {
+        const msgRes = await fetch(`/api/training/${sessionId}/messages`);
+        if (msgRes.ok) {
+          const msgData = await msgRes.json();
+          const msgs = msgData.data || [];
+          if (msgs.length > 0) {
+            setMessages(msgs.map((m: Record<string, unknown>, i: number) => ({
+              id: String(m.id || i),
+              role: (m.role as 'buyer' | 'seller') || 'buyer',
+              content: String(m.content || ''),
+              messageOrder: (m.message_order as number) || i + 1,
+            })));
+            setStarting(false);
+            return;
+          }
+        }
+      } catch {
+        // Messages API might not exist yet, fall through
+      }
 
-      // For now, show session info
+      // Fallback: show session info
       setMessages([{
         id: 'info',
         role: 'buyer',

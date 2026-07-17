@@ -7,9 +7,22 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const rawUserId = searchParams.get('userId');
     const userId = resolveUserId(rawUserId);
+    const sessionId = searchParams.get('sessionId');
     const limit = parseInt(searchParams.get('limit') || '20');
 
     const client = getClient();
+
+    // Direct session lookup by ID
+    if (sessionId) {
+      const { data, error } = await client
+        .from('training_history')
+        .select('*')
+        .eq('id', sessionId)
+        .maybeSingle();
+      if (error) throw error;
+      return NextResponse.json({ success: true, data: data || null });
+    }
+
     let query = client
       .from('training_history')
       .select('id, status, mode, final_score, rule_score, ai_score, bonus_score, total_messages, weaknesses, started_at, completed_at, buyer_persona_id')
