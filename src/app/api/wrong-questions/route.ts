@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getClient } from '@/lib/db';
+import { resolveUserId } from '@/lib/utils';
 
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const userId = searchParams.get('userId');
+    const rawUserId = searchParams.get('userId');
+    const userId = resolveUserId(rawUserId);
     const category = searchParams.get('category');
 
     const client = getClient();

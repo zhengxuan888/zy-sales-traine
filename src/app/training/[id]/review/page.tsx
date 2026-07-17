@@ -75,11 +75,11 @@ export default function ReviewPage() {
       const res = await fetch('/api/training/start', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: 'default' }),
+        body: JSON.stringify({}),
       });
       const data = await res.json();
-      if (data.success && data.sessionId) {
-        router.push(`/training/${data.sessionId}`);
+      if (data.success && data.data?.sessionId) {
+        router.push(`/training/${data.data.sessionId}`);
       } else {
         router.push('/training/new');
       }

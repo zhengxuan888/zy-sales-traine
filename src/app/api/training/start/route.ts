@@ -3,6 +3,7 @@ import { getClient } from '@/lib/db';
 import { TrainingEngine } from '@/lib/engine';
 import { validateBuyerResponse, getFallbackBuyerResponse } from '@/lib/engine/response-validator';
 import { generateDynamicBuyer } from '@/lib/engine/buyer-generator';
+import { resolveUserId } from '@/lib/utils';
 
 export async function POST(request: NextRequest) {
   try {
@@ -69,7 +70,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Generate dynamic buyer persona
-    const effectiveUserId = userId || '86dbb941-690f-46ab-9221-5038ff985173';
+    const effectiveUserId = resolveUserId(userId);
     const dynamicBuyer = await generateDynamicBuyer({
       buyerPersonaId: persona.id,
       buyerPersonaName: persona.name,

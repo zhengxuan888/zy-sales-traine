@@ -70,7 +70,7 @@ export default function TrainingPage() {
       // Get available personas and markets
       const [personasRes, marketsRes] = await Promise.all([
         fetch('/api/cases?limit=1'), // Just to check API is alive
-        fetch('/api/training/history?userId=default&limit=1'),
+        fetch('/api/training/history?limit=1'),
       ]);
 
       if (!personasRes.ok) throw new Error('API unavailable');
@@ -94,8 +94,7 @@ export default function TrainingPage() {
           body: JSON.stringify({
             buyerPersonaId: '690ea05d-592e-455a-a721-5d593a02c36f', // hesitant
             marketConfigId: '5ccea883-3c19-4e3f-bd99-c3ae1d32e063', // spain
-            userId: 'default',
-          }),
+            }),
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.message || data.error || 'Failed to start');
@@ -106,7 +105,7 @@ export default function TrainingPage() {
       const res = await fetch('/api/training/start', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ buyerPersonaId, marketConfigId, userId: 'default' }),
+        body: JSON.stringify({ buyerPersonaId, marketConfigId }),
       });
 
       const data = await res.json();
@@ -145,7 +144,7 @@ export default function TrainingPage() {
   async function loadExistingSession() {
     try {
       setStarting(true);
-      const res = await fetch(`/api/training/history?userId=default&limit=50`);
+      const res = await fetch(`/api/training/history?limit=50`);
       const data = await res.json();
       const sessions = data.data || [];
       const session = sessions.find((s: { id: string }) => s.id === sessionId);
@@ -160,7 +159,7 @@ export default function TrainingPage() {
       setBuyerPersona(session.buyer_persona_name ? { name: session.buyer_persona_name, difficulty: 'medium' } : null);
 
       // Load messages from chat_message table
-      const msgRes = await fetch(`/api/training/history?userId=default&limit=1`);
+      const msgRes = await fetch(`/api/training/history?limit=1`);
       void msgRes;
 
       // For now, show session info

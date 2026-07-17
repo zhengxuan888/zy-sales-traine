@@ -36,8 +36,8 @@ export default function ScoresPage() {
     async function fetchData() {
       try {
         const [scoresRes, historyRes] = await Promise.all([
-          fetch('/api/scores?userId=default'),
-          fetch('/api/training/history?userId=default&limit=20'),
+          fetch('/api/scores'),
+          fetch('/api/training/history?limit=20'),
         ]);
         const scoresData = await scoresRes.json();
         const historyData = await historyRes.json();
