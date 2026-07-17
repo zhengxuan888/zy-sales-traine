@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getClient } from '@/lib/db';
 import { TrainingEngine } from '@/lib/engine';
 import { validateBuyerResponse, getFallbackBuyerResponse } from '@/lib/engine/response-validator';
+import { generateDynamicBuyer } from '@/lib/engine/buyer-generator';
 
 export async function POST(request: NextRequest) {
   try {
@@ -67,13 +68,23 @@ export async function POST(request: NextRequest) {
       scenario = scenarioData;
     }
 
+    // Generate dynamic buyer persona
+    const effectiveUserId = userId || '86dbb941-690f-46ab-9221-5038ff985173';
+    const dynamicBuyer = await generateDynamicBuyer({
+      buyerPersonaId: persona.id,
+      buyerPersonaName: persona.name,
+      baseDifficulty: persona.difficulty || 3,
+      userId: effectiveUserId,
+      productType: body.productType || 'iPhone 14 Pro 256GB',
+    });
+
     // Build scenarioConfig for engine
     const scenarioConfig: Record<string, unknown> = scenario || {
       buyer_persona: persona,
       market_config: market,
-      product_type: 'iPhone 14 Pro 256GB',
+      product_type: body.productType || 'iPhone 14 Pro 256GB',
       product_condition: 'used',
-      listed_price: 650,
+      listed_price: dynamicBuyer.budgetRange.max + 50,
       sop_checklist: [
         { step: 'greeting', required: true },
         { step: 'product_info', required: true },
@@ -81,6 +92,9 @@ export async function POST(request: NextRequest) {
         { step: 'logistics', required: true },
         { step: 'closing', required: true },
       ],
+      dynamic_persona: dynamicBuyer,
+      scenario_seed: dynamicBuyer.scenarioSeed,
+      persona_prompt: dynamicBuyer.personaPrompt,
     };
 
     // If scenario doesn't have embedded persona/market, attach them
@@ -95,9 +109,28 @@ export async function POST(request: NextRequest) {
     const engine = new TrainingEngine();
     const session = await engine.initialize({
       scenarioConfig,
-      userId: userId || '86dbb941-690f-46ab-9221-5038ff985173', // Default to Employee 1
+      userId: effectiveUserId,
       mode: scenarioId ? 'case' : 'free',
     });
+
+    // Store generated persona in training_history
+    await client
+      .from('training_history')
+      .update({
+        generated_persona: {
+          ageGroup: dynamicBuyer.ageGroup,
+          occupation: dynamicBuyer.occupation,
+          personality: dynamicBuyer.personality,
+          communicationStyle: dynamicBuyer.communicationStyle,
+          budgetRange: dynamicBuyer.budgetRange,
+          specialRequest: dynamicBuyer.specialRequest,
+          scenarioSeed: dynamicBuyer.scenarioSeed.seedText,
+          difficultyBoost: dynamicBuyer.scenarioSeed.difficultyBoost,
+          effectiveDifficulty: dynamicBuyer.effectiveDifficulty,
+          personaPrompt: dynamicBuyer.personaPrompt,
+        },
+      })
+      .eq('id', session.id);
 
     // Validate greeting
     let greeting = session.buyerGreeting;
@@ -117,6 +150,16 @@ export async function POST(request: NextRequest) {
           description: persona.description,
           difficulty: persona.difficulty,
         },
+        generatedPersona: {
+          ageGroup: dynamicBuyer.ageGroup,
+          occupation: dynamicBuyer.occupation,
+          personality: dynamicBuyer.personality,
+          communicationStyle: dynamicBuyer.communicationStyle,
+          budgetRange: dynamicBuyer.budgetRange,
+          specialRequest: dynamicBuyer.specialRequest,
+          effectiveDifficulty: dynamicBuyer.effectiveDifficulty,
+        },
+        scenarioSeed: dynamicBuyer.scenarioSeed.seedText,
         market: {
           country: market.country_name,
           language: market.language,
