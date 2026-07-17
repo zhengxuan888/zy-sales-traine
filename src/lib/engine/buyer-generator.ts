@@ -192,19 +192,51 @@ async function fetchScenarioSeed(tier: 'easy' | 'medium' | 'hard'): Promise<Scen
 }
 
 /**
+ * Get base price from products table or fallback to hardcoded estimates
+ */
+async function getBasePrice(productType: string): Promise<number> {
+  try {
+    const productLower = productType.toLowerCase();
+    
+    // Try to find matching product in database
+    const { data } = await db
+      .from('products')
+      .select('cod_price_eur')
+      .eq('is_active', true)
+      .order('sales_count', { ascending: false });
+    
+    if (data && data.length > 0) {
+      // Find best matching product
+      for (const product of data) {
+        const modelName = (product as { model_name?: string }).model_name?.toLowerCase() || '';
+        if (productLower.includes(modelName) || modelName.includes(productLower.split(' ')[0])) {
+          const price = Number((product as { cod_price_eur?: number }).cod_price_eur || 0);
+          if (price > 0) return price;
+        }
+      }
+    }
+  } catch {
+    // Fall through to hardcoded prices
+  }
+  
+  // Fallback hardcoded prices
+  const productLower = productType.toLowerCase();
+  if (productLower.includes('iphone 16') || productLower.includes('s24 ultra')) return 999;
+  if (productLower.includes('iphone 15') || productLower.includes('s24')) return 600;
+  if (productLower.includes('iphone 14') || productLower.includes('s23')) return 450;
+  if (productLower.includes('iphone 13') || productLower.includes('s22')) return 350;
+  if (productLower.includes('oneplus')) return 350;
+  if (productLower.includes('pixel')) return 400;
+  if (productLower.includes('tablet')) return 657;
+  return 500; // default
+}
+
+/**
  * Generate budget range based on product type and occupation
  */
-function generateBudgetRange(productType: string, occupation: Occupation): { min: number; max: number } {
-  // Base price estimation from product type
-  let basePrice = 400; // default
-  const productLower = productType.toLowerCase();
-  
-  if (productLower.includes('iphone 16') || productLower.includes('s24 ultra')) basePrice = 800;
-  else if (productLower.includes('iphone 15') || productLower.includes('s24')) basePrice = 600;
-  else if (productLower.includes('iphone 14') || productLower.includes('s23')) basePrice = 450;
-  else if (productLower.includes('iphone 13') || productLower.includes('s22')) basePrice = 350;
-  else if (productLower.includes('oneplus')) basePrice = 350;
-  else if (productLower.includes('pixel')) basePrice = 400;
+async function generateBudgetRange(productType: string, occupation: Occupation): Promise<{ min: number; max: number }> {
+  // Get base price from products table
+  const basePrice = await getBasePrice(productType);
   
   // Apply occupation budget multiplier
   const multiplier = OCCUPATION_EFFECTS[occupation].budgetMultiplier;
@@ -305,8 +337,8 @@ export async function generateDynamicBuyer(params: {
   const agePreferred = AGE_EFFECTS[ageGroup].preferredStyle;
   const communicationStyle = Math.random() < 0.6 ? agePreferred : randomPick(COMM_STYLES);
   
-  // 3. Generate budget range
-  const budgetRange = generateBudgetRange(productType, occupation);
+  // 3. Generate budget range (uses real product prices from database)
+  const budgetRange = await generateBudgetRange(productType, occupation);
   
   // 4. Special request (40% chance of having one)
   const specialRequest = Math.random() < 0.4 ? randomPick(SPECIAL_REQUESTS) : null;
