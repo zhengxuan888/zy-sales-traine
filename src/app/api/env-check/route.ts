@@ -1,11 +1,22 @@
 import { NextResponse } from 'next/server';
 
 export async function GET() {
-  return NextResponse.json({
-    url: process.env.COZE_SUPABASE_URL,
-    anonKey: process.env.COZE_SUPABASE_ANON_KEY,
-    serviceRoleKey: process.env.COZE_SUPABASE_SERVICE_ROLE_KEY,
-    bucketEndpoint: process.env.COZE_BUCKET_ENDPOINT_URL,
-    bucketName: process.env.COZE_BUCKET_NAME,
-  });
+  const envKeys = Object.keys(process.env).sort();
+  const relevant = envKeys.filter(k => 
+    !k.startsWith('npm_') && 
+    !k.startsWith('PATH') && 
+    !k.startsWith('NODE_') &&
+    k !== '_' &&
+    !k.startsWith('_')
+  );
+  const result: Record<string, string | undefined> = {};
+  for (const k of relevant) {
+    const v = process.env[k];
+    if (v && v.length > 200) {
+      result[k] = v.substring(0, 100) + '...[TRUNCATED]...' + v.substring(v.length - 50);
+    } else {
+      result[k] = v;
+    }
+  }
+  return NextResponse.json(result);
 }
