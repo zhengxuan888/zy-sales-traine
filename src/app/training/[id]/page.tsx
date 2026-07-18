@@ -25,7 +25,9 @@ export default function TrainingPage() {
   const { t } = useI18n();
   const params = useParams();
   const router = useRouter();
-  const sessionId = params.id as string;
+  const paramId = params.id as string;
+  // Local state so we can update after training starts (params.id stays 'new')
+  const [sessionId, setSessionId] = useState(paramId);
   const isNew = sessionId === 'new';
 
   const [messages, setMessages] = useState<ChatMsg[]>([]);
@@ -88,8 +90,13 @@ export default function TrainingPage() {
     const d = data.data;
     if (!d) throw new Error('Invalid response');
 
+    const newSessionId = d.sessionId as string;
+
+    // Update React state FIRST so subsequent requests use the real ID
+    setSessionId(newSessionId);
+
     // Replace URL with session ID
-    window.history.replaceState(null, '', `/training/${d.sessionId}`);
+    window.history.replaceState(null, '', `/training/${newSessionId}`);
 
     setBuyerPersona(d.buyerPersona as { name: string; difficulty: string } || null);
     setCurrentState('INITIAL');
