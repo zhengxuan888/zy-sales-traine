@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useI18n } from '@/lib/i18n';
+import { Pagination } from '@/components/pagination';
 
 interface ScoreData {
   totalSessions: number;
@@ -31,19 +32,25 @@ export default function ScoresPage() {
   const [data, setData] = useState<ScoreData | null>(null);
   const [records, setRecords] = useState<TrainingRecord[]>([]);
   const [loading, setLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
   useEffect(() => {
     async function fetchData() {
       try {
         const [scoresRes, historyRes] = await Promise.all([
           fetch('/api/scores'),
-          fetch('/api/training/history?limit=20'),
+          fetch(`/api/training/history?page=${currentPage}&limit=${pageSize}`),
         ]);
         const scoresData = await scoresRes.json();
         const historyData = await historyRes.json();
 
         if (scoresData.success) setData(scoresData.data);
-        if (historyData.success) setRecords(historyData.data || []);
+        if (historyData.success) {
+          setRecords(historyData.data || []);
+          setTotalPages(historyData.pagination?.totalPages || 1);
+        }
       } catch (err) {
         console.error('Failed to fetch scores:', err);
       } finally {
@@ -51,7 +58,12 @@ export default function ScoresPage() {
       }
     }
     fetchData();
-  }, []);
+  }, [currentPage, pageSize]);
+
+  const handlePageSizeChange = (size: number) => {
+    setPageSize(size);
+    setCurrentPage(1); // Reset to first page when changing page size
+  };
 
   const scoreColor = (score: number) => {
     if (score >= 70) return 'text-[#00ff88]';
@@ -180,6 +192,18 @@ export default function ScoresPage() {
                   </div>
                 </Link>
               ))}
+            </div>
+            
+            {/* Pagination */}
+            <div className="px-4 pb-4">
+              <Pagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                pageSize={pageSize}
+                onPageChange={setCurrentPage}
+                onPageSizeChange={handlePageSizeChange}
+                pageSizeOptions={[10, 20, 50]}
+              />
             </div>
           </div>
         )}

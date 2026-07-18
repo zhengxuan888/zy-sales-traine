@@ -12,8 +12,6 @@ import {
   X,
   Image as ImageIcon,
   Loader2,
-  ChevronLeft,
-  ChevronRight,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -42,6 +40,7 @@ import {
 } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
+import { Pagination } from '@/components/pagination';
 
 interface ConversationMessage {
   role: 'buyer' | 'seller';
@@ -86,6 +85,7 @@ export default function CasesPage() {
   const [filterCountry, setFilterCountry] = useState<string>('all');
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
   const [countries, setCountries] = useState<{ country_code: string; country_name: string }[]>([]);
   const [uploadOpen, setUploadOpen] = useState(false);
   const [detailOpen, setDetailOpen] = useState(false);
@@ -113,7 +113,7 @@ export default function CasesPage() {
 
   useEffect(() => {
     fetchCases();
-  }, [currentPage, searchQuery, filterDifficulty, filterProductType, filterCountry]);
+  }, [currentPage, searchQuery, filterDifficulty, filterProductType, filterCountry, pageSize]);
 
   const fetchCountries = async () => {
     try {
@@ -132,7 +132,7 @@ export default function CasesPage() {
     try {
       const params = new URLSearchParams();
       params.set('page', currentPage.toString());
-      params.set('limit', '10');
+      params.set('limit', pageSize.toString());
       if (searchQuery) params.set('search', searchQuery);
       if (filterDifficulty !== 'all') params.set('difficulty', filterDifficulty);
       if (filterProductType !== 'all') params.set('product_type', filterProductType);
@@ -149,6 +149,11 @@ export default function CasesPage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handlePageSizeChange = (size: number) => {
+    setPageSize(size);
+    setCurrentPage(1);
   };
 
   // Reset to page 1 when filters change
@@ -667,39 +672,14 @@ export default function CasesPage() {
 
         {/* Pagination */}
         {totalPages > 1 && (
-          <div className="flex items-center justify-center gap-2 pt-4">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-              disabled={currentPage === 1}
-            >
-              <ChevronLeft className="h-4 w-4 mr-1" />
-              上一页
-            </Button>
-            <div className="flex items-center gap-1">
-              {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-                <Button
-                  key={page}
-                  variant={currentPage === page ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => setCurrentPage(page)}
-                  className="w-9 h-9 p-0"
-                >
-                  {page}
-                </Button>
-              ))}
-            </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-              disabled={currentPage === totalPages}
-            >
-              下一页
-              <ChevronRight className="h-4 w-4 ml-1" />
-            </Button>
-          </div>
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            pageSize={pageSize}
+            onPageChange={setCurrentPage}
+            onPageSizeChange={handlePageSizeChange}
+            pageSizeOptions={[10, 20, 50]}
+          />
         )}
 
         {/* Case Detail Dialog */}

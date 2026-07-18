@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useI18n } from '@/lib/i18n';
+import { Pagination } from '@/components/pagination';
 
 interface WrongQuestion {
   id: string;
@@ -20,26 +21,47 @@ export default function WrongQuestionsPage() {
   const [data, setData] = useState<{
     all: WrongQuestion[];
     grouped: Record<string, WrongQuestion[]>;
-    categories: string[];
-    total: number;
+    categories: Record<string, number>;
   } | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
   const { t, toggleLocale } = useI18n();
 
   useEffect(() => {
-    fetch('/api/wrong-questions')
+    setLoading(true);
+    const params = new URLSearchParams();
+    params.set('page', currentPage.toString());
+    params.set('limit', pageSize.toString());
+    if (selectedCategory) params.set('category', selectedCategory);
+
+    fetch(`/api/wrong-questions?${params.toString()}`)
       .then(r => r.json())
       .then(d => {
-        if (d.success) setData(d.data);
+        if (d.success) {
+          setData(d.data);
+          setTotalPages(d.pagination?.totalPages || 1);
+        }
       })
       .catch(console.error)
       .finally(() => setLoading(false));
-  }, []);
+  }, [currentPage, pageSize, selectedCategory]);
 
-  const filteredQuestions = selectedCategory
-    ? data?.grouped[selectedCategory] || []
-    : data?.all || [];
+  const handlePageSizeChange = (size: number) => {
+    setPageSize(size);
+    setCurrentPage(1);
+  };
+
+  const handleCategoryChange = (cat: string | null) => {
+    setSelectedCategory(cat);
+    setCurrentPage(1); // Reset to first page when changing category
+  };
+
+  const totalQuestions = data?.categories 
+    ? Object.values(data.categories).reduce((sum, count) => sum + count, 0)
+    : 0;
 
   return (
     <div className="min-h-screen bg-[#0a0a0f] px-4 py-6 max-w-lg mx-auto">
@@ -53,7 +75,7 @@ export default function WrongQuestionsPage() {
         <div className="flex-1">
           <h1 className="text-lg font-bold text-white">{t('wrong.title')}</h1>
           <p className="text-xs text-[#888899]">
-            {data ? `${data.all.length} ${t('wrong.subtitle').toLowerCase()}` : t('common.loading')}
+            {data ? `${totalQuestions} ${t('wrong.subtitle').toLowerCase()}` : t('common.loading')}
           </p>
         </div>
         <button onClick={toggleLocale} className="px-2 py-1 rounded bg-[#141420] border border-[#1e1e2e] text-[10px] text-[#888899] hover:text-[#00ff88] hover:border-[#00ff88]/30 transition-all">
@@ -78,29 +100,29 @@ export default function WrongQuestionsPage() {
           {/* Category Filter */}
           <div className="flex gap-2 overflow-x-auto pb-3 mb-4">
             <button
-              onClick={() => setSelectedCategory(null)}
+              onClick={() => handleCategoryChange(null)}
               className={`px-3 py-1.5 rounded-full text-xs whitespace-nowrap ${
                 !selectedCategory ? 'bg-[#00ff88] text-black' : 'bg-[#141420] text-[#888899] border border-[#1e1e2e]'
               }`}
             >
-              {t('wrong.all')} ({data.all.length})
+              {t('wrong.all')} ({totalQuestions})
             </button>
-            {Object.keys(data.grouped).map(cat => (
+            {data.categories && Object.entries(data.categories).map(([cat, count]) => (
               <button
                 key={cat}
-                onClick={() => setSelectedCategory(cat)}
+                onClick={() => handleCategoryChange(cat)}
                 className={`px-3 py-1.5 rounded-full text-xs whitespace-nowrap ${
                   selectedCategory === cat ? 'bg-[#00ff88] text-black' : 'bg-[#141420] text-[#888899] border border-[#1e1e2e]'
                 }`}
               >
-                {cat} ({data.grouped[cat]?.length || 0})
+                {cat} ({count})
               </button>
             ))}
           </div>
 
           {/* Questions List */}
           <div className="space-y-3">
-            {filteredQuestions.map((q) => (
+            {data.all.map((q) => (
               <div key={q.id} className="bg-[#141420] rounded-xl border border-[#1e1e2e] p-4">
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#1e1e2e] text-[#888899]">
@@ -133,6 +155,16 @@ export default function WrongQuestionsPage() {
               </div>
             ))}
           </div>
+
+          {/* Pagination */}
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            pageSize={pageSize}
+            onPageChange={setCurrentPage}
+            onPageSizeChange={handlePageSizeChange}
+            pageSizeOptions={[10, 20, 50]}
+          />
         </>
       )}
     </div>
