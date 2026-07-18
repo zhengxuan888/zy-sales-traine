@@ -12,6 +12,8 @@ const FALLBACK_GREETINGS: Record<string, string> = {
   el: 'Geia! Auto to iPhone einai diathesimo? Poso to dinis?',
   hr: 'Bok! Je li taj iPhone jos dostupan? Koja je cijena?',
   en: 'Hi! Is this iPhone still available? What price?',
+  it: 'Ciao! Questo iPhone e ancora disponibile? Quanto chiedi?',
+  sk: 'Ahoj! Este je ten iPhone dostupny? Aku cenu?',
 };
 
 function getFallbackGreeting(language: string): string {
@@ -44,6 +46,18 @@ export async function POST(request: NextRequest) {
   const { buyerPersonaId, marketConfigId, scenarioId, userId } = body;
   const effectiveUserId = resolveUserId(userId as string | null);
   const client = getClient();
+
+  // Clean up stale active sessions (>30 min) before starting new training
+  try {
+    const thirtyMinAgo = new Date(Date.now() - 30 * 60 * 1000).toISOString();
+    await client
+      .from('training_history')
+      .update({ status: 'completed' })
+      .eq('status', 'active')
+      .lt('started_at', thirtyMinAgo);
+  } catch (cleanupErr) {
+    console.warn('[Training Start] Cleanup failed:', cleanupErr);
+  }
 
   // === Step 1: Get buyer persona (with fallback) ===
   let persona: Record<string, unknown> | null = null;
@@ -94,20 +108,21 @@ export async function POST(request: NextRequest) {
       market = data;
     }
     if (!market) {
+      // Randomly select from all active markets (8 supported countries)
       const { data: markets } = await client
         .from('market_config')
         .select('*')
-        .eq('country_code', 'ES')
-        .limit(1);
-      market = markets?.[0] || null;
-    }
-    if (!market) {
-      // Any market will do
-      const { data: markets } = await client
-        .from('market_config')
-        .select('*')
-        .limit(1);
-      market = markets?.[0] || null;
+        .eq('is_active', true);
+      if (markets && markets.length > 0) {
+        market = markets[Math.floor(Math.random() * markets.length)];
+      } else {
+        // Ultimate fallback
+        const { data: anyMarket } = await client
+          .from('market_config')
+          .select('*')
+          .limit(1);
+        market = anyMarket?.[0] || null;
+      }
     }
   } catch (err) {
     console.error('[Training Start] Failed to fetch market:', err);
