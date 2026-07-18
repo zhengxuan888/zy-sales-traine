@@ -17,6 +17,7 @@ interface ChatMsg {
   id: string;
   role: 'buyer' | 'seller';
   content: string;
+  translation?: string;
   messageOrder: number;
   deductions?: Deduction[];
 }
@@ -143,6 +144,7 @@ export default function TrainingPage() {
           id: String(m.id || i),
           role: (m.role as 'buyer' | 'seller') || 'buyer',
           content: String(m.content || ''),
+          translation: String(m.translation || ''),
           messageOrder: (m.messageOrder as number) || i + 1,
           deductions: (m.deductions as Array<{dimension: string; points: number; reason: string; severity: string; messageRef: number}>) || [],
         })));
@@ -202,6 +204,7 @@ export default function TrainingPage() {
         id: `ai-${Date.now()}`,
         role: 'buyer',
         content: d.aiMessage || 'OK',
+        translation: d.aiTranslation || undefined,
         messageOrder: messages.length + 2,
       };
       setMessages(prev => [...prev, aiMsg]);
@@ -366,6 +369,11 @@ export default function TrainingPage() {
                     {msg.role === 'seller' ? 'You' : (buyerPersona?.name || 'Buyer')}
                   </div>
                   <div className="text-sm leading-relaxed whitespace-pre-wrap">{msg.content}</div>
+                  {msg.translation && msg.role === 'buyer' && (
+                    <div className="mt-2 pt-2 border-t border-[#1e1e2e] text-xs text-[#4488ff]">
+                      📝 {msg.translation}
+                    </div>
+                  )}
                   {/* Show deductions for this message */}
                   {msg.deductions && msg.deductions.length > 0 && (
                     <div className="mt-2 pt-2 border-t border-[#ff4444]/20">

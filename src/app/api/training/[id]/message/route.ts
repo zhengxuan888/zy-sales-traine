@@ -123,6 +123,17 @@ export async function POST(
       existingMessages || []
     );
 
+    // Check if seller replied in Chinese - deduct 100 points
+    const hasChinese = /[\u4e00-\u9fa5]/.test(content.trim());
+    if (hasChinese && marketLanguage !== 'zh' && marketLanguage !== 'zh-CN' && marketLanguage !== 'zh-TW') {
+      ruleResult.deductions.push({
+        reason: '使用了中文回复，买家使用外语，请用买家语言回复',
+        points: 100,
+        dimension: 'language',
+        severity: 'severe',
+      });
+    }
+
     // Save user message deductions if any
     if (ruleResult.deductions.length > 0) {
       await client.from('chat_message').update({
@@ -159,12 +170,34 @@ export async function POST(
       buyerContent = getFallbackBuyerResponse(marketConfigData);
     }
 
+    // Handle GHOSTED state - show "已退出群聊" instead of "..."
+    if (result.state === 'GHOSTED') {
+      buyerContent = '🚫 已退出群聊';
+    }
+
+    // Generate Chinese translation for buyer message if not in Chinese
+    let buyerTranslation = '';
+    if (marketLanguage && !['zh', 'zh-CN', 'zh-TW', 'zh-cn', 'zh-tw'].includes(marketLanguage) && result.state !== 'GHOSTED') {
+      try {
+        const translationPrompt = 'Translate the following message to Chinese (简体中文). Only return the translation, nothing else:\n\n' + buyerContent;
+        buyerTranslation = await engine['llm'].invoke(
+          [{ role: 'user', content: translationPrompt }],
+          { overrides: { temperature: 0.3 } }
+        );
+        buyerTranslation = buyerTranslation.trim();
+      } catch {
+        buyerTranslation = '';
+      }
+    }
+
     // Save AI message
     const aiMsgOrder = userMsgOrder + 1;
     await client.from('chat_message').insert({
       training_id: id,
       role: 'buyer',
       content: buyerContent,
+      language: marketLanguage || 'es',
+      translation: buyerTranslation || null,
       message_order: aiMsgOrder,
     });
 
@@ -192,6 +225,7 @@ export async function POST(
       success: true,
       data: {
         aiMessage: buyerContent,
+        aiTranslation: buyerTranslation,
         newState: result.state,
         scoreSignals: ruleResult.signals,
         deductions: ruleResult.deductions.map(d => ({

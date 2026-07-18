@@ -53,7 +53,7 @@ export async function GET(
     // Get chat messages
     const { data: messages, error: msgError } = await client
       .from('chat_message')
-      .select('id, role, content, message_order, deduction_points, is_flagged, created_at')
+      .select('id, role, content, translation, language, message_order, deduction_points, is_flagged, created_at')
       .eq('training_id', id)
       .order('message_order', { ascending: true });
 
@@ -88,6 +88,8 @@ export async function GET(
           id: m.id,
           role: m.role,
           content: m.content,
+          translation: m.translation || '',
+          language: m.language || 'es',
           messageOrder: m.message_order,
           deductions: m.deduction_points || [],
           isFlagged: m.is_flagged || false,

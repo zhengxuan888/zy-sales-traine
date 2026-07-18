@@ -124,6 +124,7 @@ CREATE TABLE chat_message (
     role VARCHAR(20) NOT NULL,
     content TEXT NOT NULL,
     language VARCHAR(10) DEFAULT 'es',
+    translation TEXT,
     metadata JSONB,
     score_signals JSONB,
     deduction_points JSONB,
