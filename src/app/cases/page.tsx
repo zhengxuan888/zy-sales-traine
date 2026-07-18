@@ -206,7 +206,7 @@ export default function CasesPage() {
     if (files.length === 0) return;
 
     // Limit to 5 files
-    const newFiles = [...uploadFiles, ...files].slice(0, 5);
+    const newFiles = [...uploadFiles, ...files].slice(0, 20);
     setUploadFiles(newFiles);
 
     // Generate previews
@@ -366,7 +366,7 @@ export default function CasesPage() {
                       <div className="space-y-2">
                         <ImageIcon className="h-8 w-8 mx-auto text-muted-foreground" />
                         <p className="text-sm text-muted-foreground">
-                          点击上传截图（最多5张）
+                          点击上传截图（最多20张）
                         </p>
                         <p className="text-xs text-muted-foreground">
                           支持 JPG、PNG 格式
@@ -393,7 +393,7 @@ export default function CasesPage() {
                             </button>
                           </div>
                         ))}
-                        {uploadFiles.length < 5 && (
+                        {uploadFiles.length < 20 && (
                           <div className="w-full h-20 flex items-center justify-center border border-dashed border-border rounded">
                             <Upload className="h-5 w-5 text-muted-foreground" />
                           </div>
