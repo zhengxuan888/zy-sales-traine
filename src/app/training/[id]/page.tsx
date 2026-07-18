@@ -110,48 +110,43 @@ export default function TrainingPage() {
   async function loadExistingSession() {
     try {
       setStarting(true);
-      // Direct lookup by session ID
-      const res = await fetch(`/api/training/history?sessionId=${sessionId}`);
-      const data = await res.json();
-      const session = data.data;
-
-      if (!session) {
+      // Direct lookup via GET /api/training/[id]
+      const res = await fetch(`/api/training/${sessionId}`);
+      if (res.status === 404) {
         setError('Session not found');
         setStarting(false);
         return;
       }
-
-      setCurrentState(session.current_state || 'INITIAL');
-      setBuyerPersona(session.buyer_persona_name ? { name: session.buyer_persona_name, difficulty: 'medium' } : null);
-
-      // Load chat messages for this session
-      try {
-        const msgRes = await fetch(`/api/training/${sessionId}/messages`);
-        if (msgRes.ok) {
-          const msgData = await msgRes.json();
-          const msgs = msgData.data || [];
-          if (msgs.length > 0) {
-            setMessages(msgs.map((m: Record<string, unknown>, i: number) => ({
-              id: String(m.id || i),
-              role: (m.role as 'buyer' | 'seller') || 'buyer',
-              content: String(m.content || ''),
-              messageOrder: (m.message_order as number) || i + 1,
-            })));
-            setStarting(false);
-            return;
-          }
-        }
-      } catch {
-        // Messages API might not exist yet, fall through
+      const data = await res.json();
+      if (!data.success) {
+        setError(data.message || 'Failed to load session');
+        setStarting(false);
+        return;
       }
 
-      // Fallback: show session info
-      setMessages([{
-        id: 'info',
-        role: 'buyer',
-        content: `Training session: ${session.scenario_name || session.id}`,
-        messageOrder: 1,
-      }]);
+      const session = data.data;
+      setCurrentState(session.currentState || 'INITIAL');
+      setBuyerPersona(session.buyerPersona?.name ? { name: session.buyerPersona.name, difficulty: 'medium' } : null);
+      setRunningScore(session.runningScore ?? 100);
+
+      // Load messages
+      const msgs = session.messages || [];
+      if (msgs.length > 0) {
+        setMessages(msgs.map((m: Record<string, unknown>, i: number) => ({
+          id: String(m.id || i),
+          role: (m.role as 'buyer' | 'seller') || 'buyer',
+          content: String(m.content || ''),
+          messageOrder: (m.messageOrder as number) || i + 1,
+          deductions: (m.deductions as Array<{dimension: string; points: number; reason: string; severity: string; messageRef: number}>) || [],
+        })));
+      } else {
+        setMessages([{
+          id: 'info',
+          role: 'buyer',
+          content: 'Training session loaded. Start chatting!',
+          messageOrder: 1,
+        }]);
+      }
       setStarting(false);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load session');

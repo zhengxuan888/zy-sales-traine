@@ -178,10 +178,15 @@ export async function POST(
     const runningScore = Math.max(0, 100 - totalDeductions);
 
     // Update session
-    await client.from('training_history').update({
+    const totalMessages = (existingMessages?.length || 0) + 2; // +2 for user msg + AI msg just saved
+    const { error: updateError } = await client.from('training_history').update({
       current_state: result.state,
-      updated_at: new Date().toISOString(),
+      total_messages: totalMessages,
     }).eq('id', id);
+    
+    if (updateError) {
+      console.error('[Message] Failed to update session:', updateError);
+    }
 
     return NextResponse.json({
       success: true,

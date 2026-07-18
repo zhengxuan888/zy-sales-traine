@@ -54,10 +54,23 @@ export default function ReviewPage() {
   useEffect(() => {
     const fetchReview = async () => {
       try {
-        const res = await fetch(`/api/training/${trainingId}/complete`, { method: 'POST' });
+        const res = await fetch(`/api/training/${trainingId}/review`);
         const data = await res.json();
         if (data.success) {
-          setReview(data);
+          const d = data.data;
+          setReview({
+            finalScore: {
+              ruleScore: d.scores?.ruleScore || 0,
+              aiScore: d.scores?.aiScore || 0,
+              bonus: d.scores?.bonusScore || 0,
+              total: d.scores?.finalScore || 0,
+              breakdown: d.scores?.breakdown || {},
+              weaknesses: d.weaknesses || [],
+            },
+            coachReview: d.coachReview?.summary || '',
+            issues: d.coachReview?.issues || [],
+            examples: d.coachReview?.examples || [],
+          });
         }
       } catch (err) {
         console.error('Failed to fetch review:', err);
