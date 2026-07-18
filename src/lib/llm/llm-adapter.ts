@@ -72,7 +72,7 @@ export const AI_ADAPTERS: Record<string, ModelCapability> = {
     bestFor: ['buyer'],
   },
   'deepseek-v3': {
-    modelId: 'deepseek-v3-2-251201',
+    modelId: process.env.DEEPSEEK_MODEL_ID || 'deepseek-v3-2-251201',
     displayName: 'DeepSeek V3',
     provider: 'deepseek',
     maxContextTokens: 64000,
@@ -262,10 +262,22 @@ export class LLMAdapter {
   private defaultPreset: string;
 
   constructor(customHeaders?: Record<string, string>) {
-    const config = new Config();
-    this.client = new LLMClient(config, customHeaders);
-    this.defaultModelKey = 'doubao-seed-lite';
-    this.defaultPreset = 'buyer-chat';
+    const cozeKey = process.env.COZE_WORKLOAD_IDENTITY_API_KEY || "";
+    const openaiKey = process.env.OPENAI_API_KEY || "";
+    
+    if (!cozeKey && openaiKey) {
+      const config = new Config({
+        apiKey: openaiKey,
+        modelBaseUrl: process.env.OPENAI_BASE_URL || process.env.OPENAI_API_BASE || "https://api.openai.com/v1",
+      });
+      this.client = new LLMClient(config, customHeaders);
+      this.defaultModelKey = process.env.LLM_DEFAULT_MODEL || "deepseek-v3";
+    } else {
+      const config = new Config();
+      this.client = new LLMClient(config, customHeaders);
+      this.defaultModelKey = "doubao-seed-lite";
+    }
+    this.defaultPreset = "buyer-chat";
   }
 
   /**
