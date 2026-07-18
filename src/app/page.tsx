@@ -60,7 +60,7 @@ export default function HomePage() {
       icon: '\u{1F468}\u200D\u{1F3EB}',
       label: t('home.menu.coach'),
       sublabel: t('home.menu.coachSub'),
-      href: '/scores',
+      href: '/coach',
       color: 'from-amber-500/20 to-amber-600/5',
       border: 'border-amber-500/30',
       hover: 'hover:border-amber-400/60',

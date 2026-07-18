@@ -90,7 +90,7 @@ function buildHelpPrompt(ctx: {
   description: string;
   buyerType?: string;
   productType?: string;
-  conversationContext?: any;
+  conversationContext?: unknown;
 }): string {
   const lines = [
     'You are an expert FB Marketplace sales coach. A seller needs help with a real buyer situation.',
@@ -105,8 +105,12 @@ function buildHelpPrompt(ctx: {
   if (ctx.conversationContext) {
     lines.push('', '## Recent Conversation');
     if (Array.isArray(ctx.conversationContext)) {
-      ctx.conversationContext.forEach((msg: any, i: number) => {
-        lines.push(`${i + 1}. [${msg.role || 'unknown'}]: ${msg.content || msg}`);
+      ctx.conversationContext.forEach((msg: Record<string, string> | string, i: number) => {
+        if (typeof msg === 'string') {
+          lines.push(`${i + 1}. ${msg}`);
+        } else {
+          lines.push(`${i + 1}. [${msg.role || 'unknown'}]: ${msg.content || ''}`);
+        }
       });
     } else if (typeof ctx.conversationContext === 'string') {
       lines.push(ctx.conversationContext);

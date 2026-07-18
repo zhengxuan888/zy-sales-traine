@@ -87,6 +87,7 @@ export default function CasesPage() {
   const [totalPages, setTotalPages] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [countries, setCountries] = useState<{ country_code: string; country_name: string }[]>([]);
+  const [productTypes, setProductTypes] = useState<string[]>([]);
   const [uploadOpen, setUploadOpen] = useState(false);
   const [detailOpen, setDetailOpen] = useState(false);
   const [selectedCase, setSelectedCase] = useState<Case | null>(null);
@@ -109,6 +110,7 @@ export default function CasesPage() {
 
   useEffect(() => {
     fetchCountries();
+    fetchProductTypes();
   }, []);
 
   useEffect(() => {
@@ -124,6 +126,18 @@ export default function CasesPage() {
       }
     } catch (error) {
       console.error('Failed to fetch countries:', error);
+    }
+  };
+
+  const fetchProductTypes = async () => {
+    try {
+      const res = await fetch('/api/cases/product-types');
+      const data = await res.json();
+      if (data.success) {
+        setProductTypes(data.data);
+      }
+    } catch (error) {
+      console.error('Failed to fetch product types:', error);
     }
   };
 
@@ -301,8 +315,6 @@ export default function CasesPage() {
     if (d <= 3) return { text: '中等', color: 'bg-yellow-500/20 text-yellow-400' };
     return { text: '困难', color: 'bg-red-500/20 text-red-400' };
   };
-
-  const productTypes = [...new Set(cases.map((c) => c.product_type).filter(Boolean))];
 
   if (loading) {
     return (

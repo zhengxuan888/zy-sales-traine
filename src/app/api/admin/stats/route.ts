@@ -5,54 +5,84 @@ export async function GET() {
   try {
     const client = getClient();
 
-    // Get all users with their training stats
-    const { data: users, error: userError } = await client
+    // Get total users count (excluding boss)
+    const { count: totalUsers } = await client
       .from('users')
-      .select('id, name, email, role')
-      .neq('role', 'boss')
-      .order('name');
-    if (userError) throw userError;
+      .select('id', { count: 'exact', head: true })
+      .neq('role', 'boss');
 
-    const { data: trainings, error: trainingError } = await client
+    // Get all completed training sessions
+    const { data: trainings } = await client
       .from('training_history')
-      .select('user_id, final_score, weaknesses, status')
+      .select('final_score, weaknesses, status, started_at, user_id')
       .eq('status', 'completed');
-    if (trainingError) throw trainingError;
 
-    // Aggregate stats per user
-    const statsMap: Record<string, { count: number; totalScore: number; weaknesses: Record<string, number> }> = {};
-    for (const t of trainings || []) {
-      const uid = t.user_id;
-      if (!uid) continue;
-      if (!statsMap[uid]) statsMap[uid] = { count: 0, totalScore: 0, weaknesses: {} };
-      statsMap[uid].count++;
-      statsMap[uid].totalScore += (t.final_score || 0);
-      const w = t.weaknesses as string[] | null;
-      if (w) {
-        for (const item of w) {
-          statsMap[uid].weaknesses[item] = (statsMap[uid].weaknesses[item] || 0) + 1;
+    const completedTrainings = trainings || [];
+    const totalTrainings = completedTrainings.length;
+    const avgScore = totalTrainings > 0
+      ? Math.round(completedTrainings.reduce((sum, t) => sum + (t.final_score || 0), 0) / totalTrainings)
+      : 0;
+    const highScore = completedTrainings.length > 0
+      ? Math.max(...completedTrainings.map(t => t.final_score || 0))
+      : 0;
+
+    // Calculate team-wide weaknesses
+    const weaknessCount: Record<string, number> = {};
+    for (const t of completedTrainings) {
+      const weaknesses = t.weaknesses as string[] | null;
+      if (weaknesses) {
+        for (const w of weaknesses) {
+          weaknessCount[w] = (weaknessCount[w] || 0) + 1;
         }
       }
     }
+    const topWeaknesses = Object.entries(weaknessCount)
+      .sort(([, a], [, b]) => b - a)
+      .slice(0, 5)
+      .map(([name, count]) => ({ name, count }));
 
-    const userStats = (users || []).map((user: { id: string; name: string; email: string | null }) => {
-      const s = statsMap[user.id] || { count: 0, totalScore: 0, weaknesses: {} };
-      const avgScore = s.count > 0 ? Math.round(s.totalScore / s.count) : 0;
-      const topWeaknesses = Object.entries(s.weaknesses)
-        .sort(([, a], [, b]) => b - a)
-        .slice(0, 3)
-        .map(([name]) => name);
-      return {
-        id: user.id,
-        name: user.name,
-        email: user.email,
-        trainingCount: s.count,
+    // Active users (trained in last 7 days)
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    const activeUsers = new Set(
+      completedTrainings
+        .filter(t => new Date(t.started_at) >= sevenDaysAgo)
+        .map(t => t.user_id)
+    ).size;
+
+    // Trend data (last 14 days)
+    const trendMap: Record<string, { total: number; count: number }> = {};
+    for (let i = 13; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      const key = d.toISOString().split('T')[0];
+      trendMap[key] = { total: 0, count: 0 };
+    }
+    for (const t of completedTrainings) {
+      const key = t.started_at.split('T')[0];
+      if (trendMap[key]) {
+        trendMap[key].total += (t.final_score || 0);
+        trendMap[key].count += 1;
+      }
+    }
+    const trend = Object.entries(trendMap).map(([date, v]) => ({
+      date,
+      score: v.count > 0 ? Math.round(v.total / v.count) : 0,
+      count: v.count,
+    }));
+
+    return NextResponse.json({
+      success: true,
+      data: {
+        totalUsers: totalUsers || 0,
+        totalTrainings,
         avgScore,
+        highScore,
+        activeUsers,
         topWeaknesses,
-      };
+        trend,
+      }
     });
-
-    return NextResponse.json({ success: true, data: userStats });
   } catch (error) {
     console.error('Failed to fetch admin stats:', error);
     return NextResponse.json(

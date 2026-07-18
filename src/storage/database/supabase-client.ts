@@ -16,6 +16,7 @@ function loadEnv(): void {
 
   try {
     try {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
       require('dotenv').config();
       if (process.env.COZE_SUPABASE_URL && process.env.COZE_SUPABASE_ANON_KEY) {
         envLoaded = true;
@@ -96,10 +97,12 @@ function getSupabaseClient(token?: string): SupabaseClient {
   if (token) {
     key = anonKey;
   } else {
+    // eslint-disable-next-line @typescript-eslint/no-use-before-define
     const serviceRoleKey = getSupabaseServiceRoleKey();
     key = serviceRoleKey ?? anonKey;
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const globalOptions: Record<string, any> = {};
   if (token) {
     globalOptions.headers = { Authorization: `Bearer ${token}` };

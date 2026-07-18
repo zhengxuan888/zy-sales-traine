@@ -1,23 +1,30 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { getClient } from '@/lib/db';
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    const { searchParams } = new URL(request.url);
+    const page = parseInt(searchParams.get('page') || '1');
+    const limit = parseInt(searchParams.get('limit') || '10');
+    const offset = (page - 1) * limit;
+
     const client = getClient();
 
-    // Get all users
-    const { data: users, error: usersError } = await client
+    // Get all users with pagination
+    const { data: users, error: usersError, count } = await client
       .from('users')
-      .select('id, name, email, role, created_at')
-      .order('created_at', { ascending: false });
+      .select('id, name, email, role, created_at', { count: 'exact' })
+      .neq('role', 'boss')
+      .order('created_at', { ascending: false })
+      .range(offset, offset + limit - 1);
+    
     if (usersError) throw usersError;
 
-    // Get all completed training sessions
-    const { data: trainings, error: trainingsError } = await client
+    // Get all completed training sessions for stats
+    const { data: trainings } = await client
       .from('training_history')
       .select('user_id, final_score, rule_score, ai_score, bonus_score, weaknesses, status, started_at')
       .eq('status', 'completed');
-    if (trainingsError) throw trainingsError;
 
     // Build stats per user
     const userStats = (users || []).map((user: { id: string; name: string; email: string; role: string; created_at: string }) => {
@@ -57,11 +64,20 @@ export async function GET() {
       };
     });
 
-    return NextResponse.json({ success: true, data: userStats });
+    return NextResponse.json({ 
+      success: true, 
+      data: userStats,
+      pagination: {
+        page,
+        limit,
+        total: count || 0,
+        totalPages: Math.ceil((count || 0) / limit)
+      }
+    });
   } catch (error) {
     console.error('Failed to fetch admin users:', error);
     return NextResponse.json(
-      { code: 'ADMIN_ERROR', message: error instanceof Error ? error.message : 'Failed to fetch admin data', detail: null },
+      { success: false, error: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }
     );
   }
