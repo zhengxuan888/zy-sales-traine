@@ -53,7 +53,7 @@ export default function WrongQuestionsPage() {
         <div className="flex-1">
           <h1 className="text-lg font-bold text-white">{t('wrong.title')}</h1>
           <p className="text-xs text-[#888899]">
-            {data ? `${data.total} ${t('wrong.subtitle').toLowerCase()}` : t('common.loading')}
+            {data ? `${data.all.length} ${t('wrong.subtitle').toLowerCase()}` : t('common.loading')}
           </p>
         </div>
         <button onClick={toggleLocale} className="px-2 py-1 rounded bg-[#141420] border border-[#1e1e2e] text-[10px] text-[#888899] hover:text-[#00ff88] hover:border-[#00ff88]/30 transition-all">
@@ -65,7 +65,7 @@ export default function WrongQuestionsPage() {
         <div className="text-center py-12">
           <p className="text-[#888899]">{t('common.loading')}</p>
         </div>
-      ) : !data || data.total === 0 ? (
+      ) : !data || data.all.length === 0 ? (
         <div className="text-center py-12">
           <div className="text-4xl mb-4">{'\u2705'}</div>
           <p className="text-[#888899]">{t('wrong.empty')}</p>
@@ -83,9 +83,9 @@ export default function WrongQuestionsPage() {
                 !selectedCategory ? 'bg-[#00ff88] text-black' : 'bg-[#141420] text-[#888899] border border-[#1e1e2e]'
               }`}
             >
-              {t('wrong.all')} ({data.total})
+              {t('wrong.all')} ({data.all.length})
             </button>
-            {data.categories.map(cat => (
+            {Object.keys(data.grouped).map(cat => (
               <button
                 key={cat}
                 onClick={() => setSelectedCategory(cat)}
