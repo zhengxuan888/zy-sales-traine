@@ -45,13 +45,14 @@ export default function AdminPage() {
 
   const weaknessLabel = (w: string) => {
     const labels: Record<string, string> = {
-      language_tone: 'Tone',
-      conciseness: 'Length',
-      trust_sequence: 'Order',
-      meetup_handling: 'Meetup',
-      payment_handling: 'Payment',
-      product_info: 'Product Info',
-      honesty: 'Honesty',
+      greeting: 'Greeting',
+      productInfo: 'Product Info',
+      trustBuilding: 'Trust Build',
+      language: 'Language',
+      logistics: 'Logistics',
+      closing: 'Closing',
+      negotiation: 'Negotiation',
+      conversation: 'Conversation',
     };
     return labels[w] || w;
   };
