@@ -12,6 +12,8 @@ import {
   X,
   Image as ImageIcon,
   Loader2,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -81,6 +83,10 @@ export default function CasesPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [filterDifficulty, setFilterDifficulty] = useState<string>('all');
   const [filterProductType, setFilterProductType] = useState<string>('all');
+  const [filterCountry, setFilterCountry] = useState<string>('all');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [countries, setCountries] = useState<{ country_code: string; country_name: string }[]>([]);
   const [uploadOpen, setUploadOpen] = useState(false);
   const [detailOpen, setDetailOpen] = useState(false);
   const [selectedCase, setSelectedCase] = useState<Case | null>(null);
@@ -102,20 +108,41 @@ export default function CasesPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    fetchCases();
+    fetchCountries();
   }, []);
 
+  useEffect(() => {
+    fetchCases();
+  }, [currentPage, searchQuery, filterDifficulty, filterProductType, filterCountry]);
+
+  const fetchCountries = async () => {
+    try {
+      const res = await fetch('/api/countries');
+      const data = await res.json();
+      if (data.success) {
+        setCountries(data.data);
+      }
+    } catch (error) {
+      console.error('Failed to fetch countries:', error);
+    }
+  };
+
   const fetchCases = async () => {
+    setLoading(true);
     try {
       const params = new URLSearchParams();
+      params.set('page', currentPage.toString());
+      params.set('limit', '10');
       if (searchQuery) params.set('search', searchQuery);
       if (filterDifficulty !== 'all') params.set('difficulty', filterDifficulty);
       if (filterProductType !== 'all') params.set('product_type', filterProductType);
+      if (filterCountry !== 'all') params.set('country', filterCountry);
 
       const res = await fetch(`/api/cases?${params.toString()}`);
       const data = await res.json();
       if (data.success) {
         setCases(data.data as Case[]);
+        setTotalPages(data.pagination?.totalPages || 1);
       }
     } catch (error) {
       console.error('Failed to fetch cases:', error);
@@ -124,11 +151,13 @@ export default function CasesPage() {
     }
   };
 
+  // Reset to page 1 when filters change
   useEffect(() => {
-    const timer = setTimeout(fetchCases, 300);
-    return () => clearTimeout(timer);
+    if (currentPage !== 1) {
+      setCurrentPage(1);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchQuery, filterDifficulty, filterProductType]);
+  }, [searchQuery, filterDifficulty, filterProductType, filterCountry]);
 
   // Fetch screenshot URLs when a case is selected
   useEffect(() => {
@@ -506,18 +535,19 @@ export default function CasesPage() {
                 />
               </div>
               <Select
-                value={filterDifficulty}
-                onValueChange={setFilterDifficulty}
+                value={filterCountry}
+                onValueChange={setFilterCountry}
               >
-                <SelectTrigger className="w-full md:w-[140px]">
-                  <Filter className="mr-2 h-4 w-4" />
-                  <SelectValue placeholder="难度" />
+                <SelectTrigger className="w-full md:w-[160px]">
+                  <SelectValue placeholder="国家" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">全部难度</SelectItem>
-                  <SelectItem value="1">简单</SelectItem>
-                  <SelectItem value="2">中等</SelectItem>
-                  <SelectItem value="3">困难</SelectItem>
+                  <SelectItem value="all">全部国家</SelectItem>
+                  {countries.map((country) => (
+                    <SelectItem key={country.country_code} value={country.country_code}>
+                      {country.country_name}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
               <Select
@@ -534,6 +564,21 @@ export default function CasesPage() {
                       {type}
                     </SelectItem>
                   ))}
+                </SelectContent>
+              </Select>
+              <Select
+                value={filterDifficulty}
+                onValueChange={setFilterDifficulty}
+              >
+                <SelectTrigger className="w-full md:w-[140px]">
+                  <Filter className="mr-2 h-4 w-4" />
+                  <SelectValue placeholder="难度" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">全部难度</SelectItem>
+                  <SelectItem value="1">简单</SelectItem>
+                  <SelectItem value="2">中等</SelectItem>
+                  <SelectItem value="3">困难</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -618,6 +663,43 @@ export default function CasesPage() {
               <p className="mt-4 text-muted-foreground">暂无案例</p>
             </CardContent>
           </Card>
+        )}
+
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="flex items-center justify-center gap-2 pt-4">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+              disabled={currentPage === 1}
+            >
+              <ChevronLeft className="h-4 w-4 mr-1" />
+              上一页
+            </Button>
+            <div className="flex items-center gap-1">
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                <Button
+                  key={page}
+                  variant={currentPage === page ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setCurrentPage(page)}
+                  className="w-9 h-9 p-0"
+                >
+                  {page}
+                </Button>
+              ))}
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+              disabled={currentPage === totalPages}
+            >
+              下一页
+              <ChevronRight className="h-4 w-4 ml-1" />
+            </Button>
+          </div>
         )}
 
         {/* Case Detail Dialog */}
