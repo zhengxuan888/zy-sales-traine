@@ -6,7 +6,7 @@ export async function GET() {
     const client = getClient();
     const { data, error } = await client
       .from('cases')
-      .select('id, title, description, source, product_type, difficulty, tags, practice_count, avg_similarity_score, created_at')
+      .select('id, title, description, source, product_type, difficulty, tags, practice_count, avg_similarity_score, created_at, screenshots, conversation_data, key_moments, best_responses')
       .eq('is_active', true)
       .order('created_at', { ascending: false });
     if (error) throw error;
@@ -24,7 +24,7 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { title, description, conversationData, buyerPersonaId, productType, difficulty, tags } = body;
+    const { title, description, conversationData, conversation_data, buyerPersonaId, productType, product_type, difficulty, tags, screenshots, source } = body;
     const client = getClient();
 
     const { data, error } = await client
@@ -32,12 +32,13 @@ export async function POST(request: NextRequest) {
       .insert({
         title,
         description,
-        conversation_data: conversationData,
+        conversation_data: conversationData || conversation_data,
         buyer_persona_id: buyerPersonaId,
-        product_type: productType,
+        product_type: productType || product_type,
         difficulty: difficulty || 3,
         tags: tags || [],
-        source: 'upload',
+        screenshots: screenshots || [],
+        source: source || 'upload',
       })
       .select()
       .single();
