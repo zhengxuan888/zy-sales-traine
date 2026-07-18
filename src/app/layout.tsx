@@ -3,7 +3,7 @@ import './globals.css';
 import { I18nProvider } from '@/lib/i18n';
 
 export const metadata: Metadata = {
-  title: 'AI Sales Trainer - FB Marketplace',
+  title: 'ZY销售训练器 - FB Marketplace',
   description: 'Train your sales team to master Facebook Marketplace conversations. Build muscle memory through AI-powered practice sessions.',
 };
 

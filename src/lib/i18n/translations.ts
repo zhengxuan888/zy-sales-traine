@@ -19,7 +19,7 @@ export const translations = {
     'common.language': '语言',
 
     // Home Page
-    'home.title': 'AI 销售训练器',
+    'home.title': 'ZY 销售训练器',
     'home.subtitle': 'FB Marketplace - 练到形成肌肉记忆',
     'home.avgScore': '平均分',
     'home.sessions': '训练次数',
@@ -158,7 +158,7 @@ export const translations = {
     'common.language': 'Language',
 
     // Home Page
-    'home.title': 'AI Sales Trainer',
+    'home.title': 'ZY Sales Trainer',
     'home.subtitle': 'FB Marketplace - Build muscle memory',
     'home.avgScore': 'Avg Score',
     'home.sessions': 'Sessions',
