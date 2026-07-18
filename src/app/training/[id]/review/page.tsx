@@ -60,16 +60,16 @@ export default function ReviewPage() {
           const d = data.data;
           setReview({
             finalScore: {
-              ruleScore: d.scores?.ruleScore || 0,
-              aiScore: d.scores?.aiScore || 0,
-              bonus: d.scores?.bonusScore || 0,
-              total: d.scores?.finalScore || 0,
-              breakdown: d.scores?.breakdown || {},
+              ruleScore: d.ruleScore || 0,
+              aiScore: d.aiScore || 0,
+              bonus: d.bonusScore || 0,
+              total: d.finalScore || 0,
+              breakdown: d.scoreBreakdown || {},
               weaknesses: d.weaknesses || [],
             },
-            coachReview: d.coachReview?.summary || '',
-            issues: d.coachReview?.issues || [],
-            examples: d.coachReview?.examples || [],
+            coachReview: d.summary || '',
+            issues: d.issues || [],
+            examples: d.examples || [],
           });
         }
       } catch (err) {

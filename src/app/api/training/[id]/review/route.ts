@@ -42,22 +42,6 @@ export async function GET(
       .eq('training_id', id)
       .order('message_order', { ascending: true });
 
-    // Build coach review from session data
-    const coachReview = {
-      issues: session.coach_issues || [],
-      examples: session.coach_examples || [],
-      summary: session.coach_review || '',
-    };
-
-    // Build score breakdown
-    const scoreBreakdown = {
-      ruleScore: session.rule_score || 0,
-      aiScore: session.ai_score || 0,
-      bonusScore: session.bonus_score || 0,
-      finalScore: session.final_score || 0,
-      breakdown: session.score_breakdown || null,
-    };
-
     // Collect all deductions from messages
     const allDeductions = (messages || []).reduce((acc: Array<{dimension: string; points: number; reason: string; messageOrder: number}>, m: Record<string, unknown>) => {
       if (m.deductions && Array.isArray(m.deductions)) {
@@ -71,16 +55,25 @@ export async function GET(
     return NextResponse.json({
       success: true,
       data: {
+        // === Flat structure aligned with POST /complete ===
+        trainingId: session.id,
+        finalScore: session.final_score || 0,
+        ruleScore: session.rule_score || 0,
+        aiScore: session.ai_score || 0,
+        bonusScore: session.bonus_score || 0,
+        issues: session.coach_issues || [],
+        examples: session.coach_examples || [],
+        summary: session.coach_review || '',
+        weaknesses: session.weaknesses || [],
+        scoreBreakdown: session.score_breakdown || {},
+        // === Extra fields for review page rendering ===
         sessionId: session.id,
         status: session.status,
         buyerPersona: { name: personaName },
         generatedPersona: session.generated_persona || null,
         market: session.market_config_id ? { id: session.market_config_id } : null,
-        scores: scoreBreakdown,
-        coachReview,
-        weaknesses: session.weaknesses || [],
         deductions: allDeductions,
-        totalMessages: (messages || []).length,
+        totalMessages: session.total_messages || (messages || []).length,
         startedAt: session.started_at,
         completedAt: session.completed_at,
         // For retrain
