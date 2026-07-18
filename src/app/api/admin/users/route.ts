@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getClient } from '@/lib/db';
+import bcrypt from 'bcryptjs';
 
 export async function GET(request: NextRequest) {
   try {
@@ -13,7 +14,7 @@ export async function GET(request: NextRequest) {
     // Get all users with pagination
     const { data: users, error: usersError, count } = await client
       .from('users')
-      .select('id, name, email, role, created_at', { count: 'exact' })
+      .select('id, name, email, role, status, created_at', { count: 'exact' })
       .neq('role', 'boss')
       .order('created_at', { ascending: false })
       .range(offset, offset + limit - 1);
@@ -27,7 +28,7 @@ export async function GET(request: NextRequest) {
       .eq('status', 'completed');
 
     // Build stats per user
-    const userStats = (users || []).map((user: { id: string; name: string; email: string; role: string; created_at: string }) => {
+    const userStats = (users || []).map((user: { id: string; name: string; email: string; role: string; status: string; created_at: string }) => {
       const userTrainings = (trainings || []).filter(
         (t: { user_id: string }) => t.user_id === user.id
       );
@@ -57,6 +58,7 @@ export async function GET(request: NextRequest) {
         name: user.name,
         email: user.email,
         role: user.role,
+        status: user.status,
         totalTrainings,
         avgScore,
         topWeaknesses,
@@ -78,6 +80,74 @@ export async function GET(request: NextRequest) {
     console.error('Failed to fetch admin users:', error);
     return NextResponse.json(
       { success: false, error: error instanceof Error ? error.message : 'Unknown error' },
+      { status: 500 }
+    );
+  }
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json();
+    const { name, email, password } = body;
+
+    // Validate input
+    if (!name || !email || !password) {
+      return NextResponse.json(
+        { success: false, error: '姓名、邮箱和密码都是必填项' },
+        { status: 400 }
+      );
+    }
+
+    if (password.length < 6) {
+      return NextResponse.json(
+        { success: false, error: '密码至少需要6个字符' },
+        { status: 400 }
+      );
+    }
+
+    const client = getClient();
+
+    // Check if email already exists
+    const { data: existing } = await client
+      .from('users')
+      .select('id')
+      .eq('email', email)
+      .single();
+
+    if (existing) {
+      return NextResponse.json(
+        { success: false, error: '该邮箱已被注册' },
+        { status: 409 }
+      );
+    }
+
+    // Hash password
+    const hashedPassword = bcrypt.hashSync(password, 10);
+
+    // Create new employee
+    const { data: newUser, error } = await client
+      .from('users')
+      .insert({
+        name,
+        email,
+        password: hashedPassword,
+        role: 'employee',
+        status: 'active',
+      })
+      .select('id, name, email, role, status, created_at')
+      .single();
+
+    if (error) throw error;
+
+    return NextResponse.json({
+      success: true,
+      data: newUser,
+      message: '员工账号创建成功',
+    });
+  } catch (error) {
+    console.error('Failed to create user:', error);
+    return NextResponse.json(
+      { success: false, error: error instanceof Error ? error.message : '创建失败' },
       { status: 500 }
     );
   }
