@@ -2,17 +2,48 @@
 
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { useI18n } from '@/lib/i18n';
 
 export default function HomePage() {
   const [mounted, setMounted] = useState(false);
+  const [user, setUser] = useState<{name: string; role: string} | null>(null);
+  const [stats, setStats] = useState({ avgScore: 0, sessions: 0, toImprove: 0 });
   const { t, toggleLocale, locale } = useI18n();
+  const router = useRouter();
 
   useEffect(() => {
     setMounted(true);
+    // Fetch user info
+    fetch('/api/auth/me')
+      .then(r => r.json())
+      .then(data => {
+        if (data.success) {
+          setUser({ name: data.data.name, role: data.data.role });
+        }
+      })
+      .catch(() => {});
+    // Fetch stats
+    fetch('/api/training/stats')
+      .then(r => r.json())
+      .then(data => {
+        if (data.success) {
+          setStats({
+            avgScore: data.data.avgScore || 0,
+            sessions: data.data.completedSessions || 0,
+            toImprove: (data.data.topWeaknesses || []).length,
+          });
+        }
+      })
+      .catch(() => {});
   }, []);
 
   if (!mounted) return null;
+
+  const handleLogout = async () => {
+    await fetch('/api/auth/logout', { method: 'POST' });
+    router.push('/login');
+  };
 
   const menuItems = [
     {
@@ -79,14 +110,14 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen flex flex-col px-4 py-6 max-w-lg mx-auto">
-      {/* Header with Language Switch */}
-      <div className="flex items-center justify-between mb-8 animate-fade-in">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-6 animate-fade-in">
         <div className="flex-1 text-center">
           <h1 className="text-2xl font-bold text-white mb-1">
             {t('home.title')}
           </h1>
           <p className="text-sm text-[#888899]">
-            {t('home.subtitle')}
+            {user ? `${user.name}` : t('home.subtitle')}
           </p>
         </div>
         <button
@@ -101,15 +132,15 @@ export default function HomePage() {
       {/* Quick Stats */}
       <div className="grid grid-cols-3 gap-3 mb-6 animate-fade-in">
         <div className="bg-[#141420] rounded-lg p-3 text-center border border-[#1e1e2e]">
-          <div className="text-xl font-bold text-[#00ff88] font-mono">--</div>
+          <div className="text-xl font-bold text-[#00ff88] font-mono">{stats.avgScore || '--'}</div>
           <div className="text-xs text-[#888899] mt-1">{t('home.avgScore')}</div>
         </div>
         <div className="bg-[#141420] rounded-lg p-3 text-center border border-[#1e1e2e]">
-          <div className="text-xl font-bold text-[#4488ff] font-mono">--</div>
+          <div className="text-xl font-bold text-[#4488ff] font-mono">{stats.sessions || '--'}</div>
           <div className="text-xs text-[#888899] mt-1">{t('home.sessions')}</div>
         </div>
         <div className="bg-[#141420] rounded-lg p-3 text-center border border-[#1e1e2e]">
-          <div className="text-xl font-bold text-[#ff4444] font-mono">--</div>
+          <div className="text-xl font-bold text-[#ff4444] font-mono">{stats.toImprove || '--'}</div>
           <div className="text-xs text-[#888899] mt-1">{t('home.toImprove')}</div>
         </div>
       </div>
@@ -140,21 +171,25 @@ export default function HomePage() {
         ))}
       </div>
 
-      {/* Boss Entrance - Bottom */}
-      <div className="mt-6 pt-4 border-t border-[#1e1e2e] flex justify-center gap-4 animate-fade-in" style={{ animationDelay: '400ms', animationFillMode: 'backwards' }}>
-        <Link
-          href="/admin"
-          className="text-xs text-[#888899] hover:text-[#ffd700] transition-colors flex items-center gap-1"
+      {/* Bottom Bar */}
+      <div className="mt-6 pt-4 border-t border-[#1e1e2e] flex justify-center items-center gap-4 animate-fade-in" style={{ animationDelay: '400ms', animationFillMode: 'backwards' }}>
+        {user?.role === 'admin' && (
+          <>
+            <Link
+              href="/admin"
+              className="text-xs text-[#888899] hover:text-[#ffd700] transition-colors flex items-center gap-1"
+            >
+              <span>👑</span> {t('home.boss.dashboard')}
+            </Link>
+            <span className="text-[#1e1e2e]">|</span>
+          </>
+        )}
+        <button
+          onClick={handleLogout}
+          className="text-xs text-[#888899] hover:text-[#ff4444] transition-colors"
         >
-          <span>{'\u{1F451}'}</span> {t('home.boss.dashboard')}
-        </Link>
-        <span className="text-[#1e1e2e]">|</span>
-        <Link
-          href="/admin?tab=takeover"
-          className="text-xs text-[#888899] hover:text-[#ffd700] transition-colors flex items-center gap-1"
-        >
-          <span>{'\u{1F451}'}</span> {t('home.boss.takeover')}
-        </Link>
+          退出登录
+        </button>
       </div>
     </div>
   );

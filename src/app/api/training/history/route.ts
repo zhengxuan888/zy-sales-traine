@@ -1,12 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getClient } from '@/lib/db';
-import { resolveUserId } from '@/lib/utils';
+import { getUserFromRequest } from '@/lib/auth';
 
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const rawUserId = searchParams.get('userId');
-    const userId = resolveUserId(rawUserId);
+    const authUser = await getUserFromRequest(request);
+    if (!authUser) {
+      return NextResponse.json({ success: false, error: '请先登录' }, { status: 401 });
+    }
+    // Admin can optionally filter by a specific user
+    const userId = authUser.role === 'admin' && searchParams.get('userId') ? searchParams.get('userId') : authUser.id;
     const sessionId = searchParams.get('sessionId');
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '10');

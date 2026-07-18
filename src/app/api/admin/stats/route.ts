@@ -1,7 +1,13 @@
 import { NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
+import { getUserFromRequest } from '@/lib/auth';
 import { getClient } from '@/lib/db';
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const user = await getUserFromRequest(request);
+  if (!user || user.role !== 'admin') {
+    return NextResponse.json({ success: false, error: '无权限' }, { status: 403 });
+  }
   try {
     const client = getClient();
 

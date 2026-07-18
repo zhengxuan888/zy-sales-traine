@@ -28,3 +28,12 @@ export async function verifyToken(token: string): Promise<AuthUser | null> {
 }
 
 export const COOKIE_NAME = "train_auth_token";
+
+import type { NextRequest } from "next/server";
+
+/** Extract authenticated user from request cookie */
+export async function getUserFromRequest(request: NextRequest): Promise<AuthUser | null> {
+  const token = request.cookies.get(COOKIE_NAME)?.value;
+  if (!token) return null;
+  return await verifyToken(token);
+}

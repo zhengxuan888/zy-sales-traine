@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getClient } from '@/lib/db';
-import { resolveUserId } from '@/lib/utils';
+import { getUserFromRequest } from '@/lib/auth';
 
 /**
  * GET /api/training/stats
@@ -9,7 +9,11 @@ import { resolveUserId } from '@/lib/utils';
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const userId = resolveUserId(searchParams.get('userId'));
+    const authUser = await getUserFromRequest(request);
+    if (!authUser) {
+      return NextResponse.json({ success: false, error: '请先登录' }, { status: 401 });
+    }
+    const userId = authUser.role === 'admin' && searchParams.get('userId') ? searchParams.get('userId') : authUser.id;
     const client = getClient();
 
     // Clean up stale active sessions (>30 min)

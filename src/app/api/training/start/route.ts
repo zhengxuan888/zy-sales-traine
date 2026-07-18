@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getClient } from '@/lib/db';
 import { validateBuyerResponse, getFallbackBuyerResponse } from '@/lib/engine/response-validator';
-import { resolveUserId } from '@/lib/utils';
+import { getUserFromRequest } from '@/lib/auth';
 
 // Default fallback greeting per language
 const FALLBACK_GREETINGS: Record<string, string> = {
@@ -43,8 +43,12 @@ export async function POST(request: NextRequest) {
     // Empty body is OK, use defaults
   }
 
-  const { buyerPersonaId, marketConfigId, scenarioId, userId } = body;
-  const effectiveUserId = resolveUserId(userId as string | null);
+  const { buyerPersonaId, marketConfigId, scenarioId } = body;
+  const authUser = await getUserFromRequest(request);
+  if (!authUser) {
+    return NextResponse.json({ success: false, error: '请先登录' }, { status: 401 });
+  }
+  const effectiveUserId = authUser.id;
   const client = getClient();
 
   // Clean up stale active sessions (>30 min) before starting new training

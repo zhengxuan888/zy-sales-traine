@@ -5,12 +5,6 @@ const JWT_SECRET = process.env.JWT_SECRET || process.env.COZE_SUPABASE_SERVICE_R
 const secretKey = new TextEncoder().encode(JWT_SECRET);
 const COOKIE_NAME = "train_auth_token";
 
-// Routes that require authentication
-const PROTECTED_ROUTES = ["/admin"];
-
-// Routes that should redirect to admin if already logged in
-const AUTH_ROUTES = ["/login"];
-
 async function verifyAuth(request: NextRequest): Promise<boolean> {
   const token = request.cookies.get(COOKIE_NAME)?.value;
   if (!token) return false;
@@ -25,29 +19,35 @@ async function verifyAuth(request: NextRequest): Promise<boolean> {
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Check if the path is a protected route
-  const isProtected = PROTECTED_ROUTES.some((route) => pathname.startsWith(route));
-  const isAuthRoute = AUTH_ROUTES.some((route) => pathname.startsWith(route));
-
-  if (isProtected) {
-    const isAuthenticated = await verifyAuth(request);
-    if (!isAuthenticated) {
-      const loginUrl = new URL("/login", request.url);
-      return NextResponse.redirect(loginUrl);
-    }
+  // Allow API routes (they handle auth internally)
+  if (pathname.startsWith("/api/")) {
+    return NextResponse.next();
   }
 
-  if (isAuthRoute) {
+  // Allow static files and Next.js internals
+  if (pathname.startsWith("/_next/") || pathname.includes(".")) {
+    return NextResponse.next();
+  }
+
+  // Login page: redirect to home if already authenticated
+  if (pathname === "/login") {
     const isAuthenticated = await verifyAuth(request);
     if (isAuthenticated) {
-      const adminUrl = new URL("/admin", request.url);
-      return NextResponse.redirect(adminUrl);
+      return NextResponse.redirect(new URL("/", request.url));
     }
+    return NextResponse.next();
+  }
+
+  // All other pages require authentication
+  const isAuthenticated = await verifyAuth(request);
+  if (!isAuthenticated) {
+    const loginUrl = new URL("/login", request.url);
+    return NextResponse.redirect(loginUrl);
   }
 
   return NextResponse.next();
 }
 
 export const config = {
-  matcher: ["/admin/:path*", "/login/:path*"],
+  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
 };

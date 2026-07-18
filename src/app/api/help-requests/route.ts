@@ -1,13 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getClient } from '@/lib/db';
 import { getLLMAdapter } from '@/lib/llm/llm-adapter';
-import { resolveUserId } from '@/lib/utils';
+import { getUserFromRequest } from '@/lib/auth';
 
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const rawUserId = searchParams.get('userId');
-    const userId = resolveUserId(rawUserId);
+    const authUser = await getUserFromRequest(request);
+    if (!authUser) {
+      return NextResponse.json({ success: false, error: '请先登录' }, { status: 401 });
+    }
+    const userId = authUser.id;
 
     const client = getClient();
     let query = client
@@ -34,7 +37,12 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { title, description, buyerType, productType, userId, conversationContext } = body;
+    const { title, description, buyerType, productType, conversationContext } = body;
+    const authUser = await getUserFromRequest(request);
+    if (!authUser) {
+      return NextResponse.json({ success: false, error: '请先登录' }, { status: 401 });
+    }
+    const userId = authUser.id;
     const client = getClient();
 
     // 1. 先插入求助记录

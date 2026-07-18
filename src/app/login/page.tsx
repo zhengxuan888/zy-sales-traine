@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, FormEvent } from "react";
+import { useState, FormEvent, useEffect } from "react";
 import { useRouter } from "next/navigation";
 
 export default function LoginPage() {
@@ -9,6 +9,19 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [remember, setRemember] = useState(false);
+
+  useEffect(() => {
+    const saved = localStorage.getItem("zy_remember");
+    if (saved) {
+      try {
+        const { email, password } = JSON.parse(saved);
+        setEmail(email || "");
+        setPassword(password || "");
+        setRemember(true);
+      } catch {}
+    }
+  }, []);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -25,7 +38,12 @@ export default function LoginPage() {
       const data = await res.json();
 
       if (data.success) {
-        router.push("/admin");
+        if (remember) {
+          localStorage.setItem("zy_remember", JSON.stringify({ email, password }));
+        } else {
+          localStorage.removeItem("zy_remember");
+        }
+        router.push(data.data.role === "admin" ? "/admin" : "/");
       } else {
         setError(data.error || "登录失败");
       }
@@ -40,9 +58,7 @@ export default function LoginPage() {
     <div className="min-h-screen bg-[#0a0a0f] flex items-center justify-center px-4">
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
-          <h1 className="text-2xl font-bold text-white mb-2">
-            🏋️ 管理后台登录
-          </h1>
+          <h1 className="text-2xl font-bold text-white mb-2">ZY销售训练平台</h1>
           <p className="text-[#888899] text-sm">ZY 销售训练器</p>
         </div>
 
@@ -51,12 +67,12 @@ export default function LoginPage() {
           className="bg-[#141420] rounded-xl border border-[#1e1e2e] p-6 space-y-4"
         >
           <div>
-            <label className="block text-sm text-[#888899] mb-1.5">邮箱</label>
+            <label className="block text-sm text-[#888899] mb-1.5">账号</label>
             <input
-              type="email"
+              type="text"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="admin@company.com"
+              placeholder="输入账号"
               required
               className="w-full bg-[#0a0a0f] border border-[#2a2a3a] rounded-lg px-3 py-2.5 text-white text-sm placeholder-[#555] focus:outline-none focus:border-[#00ff88] transition-colors"
             />
@@ -73,6 +89,16 @@ export default function LoginPage() {
               className="w-full bg-[#0a0a0f] border border-[#2a2a3a] rounded-lg px-3 py-2.5 text-white text-sm placeholder-[#555] focus:outline-none focus:border-[#00ff88] transition-colors"
             />
           </div>
+
+          <label className="flex items-center gap-2 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={remember}
+              onChange={(e) => setRemember(e.target.checked)}
+              className="w-4 h-4 accent-[#00ff88]"
+            />
+            <span className="text-sm text-[#888899]">记住账号密码</span>
+          </label>
 
           {error && (
             <div className="bg-[#ff4444]/10 border border-[#ff4444]/20 rounded-lg px-3 py-2">

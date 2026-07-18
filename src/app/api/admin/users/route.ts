@@ -1,8 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getClient } from '@/lib/db';
+import { getUserFromRequest } from '@/lib/auth';
 import bcrypt from 'bcryptjs';
 
+async function checkAdmin(request: any) {
+  const user = await getUserFromRequest(request);
+  if (!user || user.role !== 'admin') {
+    return { ok: false, response: NextResponse.json({ success: false, error: '无权限' }, { status: 403 }) };
+  }
+  return { ok: true };
+}
+
 export async function GET(request: NextRequest) {
+  const auth = await checkAdmin(request);
+  if (!auth.ok) return auth.response;
   try {
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get('page') || '1');
@@ -86,6 +97,8 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const auth = await checkAdmin(request);
+  if (!auth.ok) return auth.response;
   try {
     const body = await request.json();
     const { name, email, password } = body;
