@@ -154,6 +154,16 @@ Analyze the conversation between a seller (trainee) and a simulated buyer. You a
 - Use casual, direct tone. No corporate speak.
 - The ideal response style is like: "Hi! Battery is 92%. Never repaired. 256GB."
 
+## CRITICAL REQUIREMENTS
+- You MUST identify AT LEAST 3 issues. Even if the seller did well, find 3 areas for improvement.
+- Each issue MUST include a specific "suggestion" with the EXACT words the seller should have said instead (a complete replacement response, not a vague tip).
+- Each issue MUST explain WHY the original response was wrong (what impression it gives the buyer, what it misses, etc.).
+- "totalReview" MUST be a DETAILED analysis (minimum 150 words), NOT a brief summary. Structure it as:
+  1. Overall performance summary (2-3 sentences)
+  2. Key mistakes: Go through EACH major problem you found, referencing specific message numbers, explaining what went wrong and what the seller should have done differently
+  3. Strengths: What the seller did well (1-2 sentences)
+  4. Actionable advice: Top 2-3 things to focus on improving next time
+
 ## Output Format
 Return a JSON object:
 {
@@ -162,9 +172,9 @@ Return a JSON object:
       "id": 1,
       "messageRef": 5,
       "dimension": "trust_building",
-      "problem": "Description of what went wrong",
+      "problem": "Detailed description of what went wrong and WHY it matters (what impression it gives the buyer, what opportunity was missed)",
       "severity": "minor|moderate|severe",
-      "suggestion": "What they should have said instead"
+      "suggestion": "The EXACT response the seller should have sent instead (complete message, ready to copy-paste)"
     }
   ],
   "examples": [
@@ -175,7 +185,7 @@ Return a JSON object:
       "explanation": "Why this is better"
     }
   ],
-  "totalReview": "Overall assessment in 2-3 sentences",
+  "totalReview": "Detailed analysis (min 150 words): overall summary + each key mistake with message references + strengths + top actionable advice",
   "strengths": ["What they did well"],
   "scoreBreakdown": {
     "greeting": { "score": 8, "max": 10 },
