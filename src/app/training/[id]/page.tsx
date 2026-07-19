@@ -40,6 +40,7 @@ export default function TrainingPage() {
   const [runningScore, setRunningScore] = useState(100);
   const [currentState, setCurrentState] = useState('INITIAL');
   const [buyerPersona, setBuyerPersona] = useState<{ name: string; difficulty: string } | null>(null);
+  const [country, setCountry] = useState<{ name: string; code: string } | null>(null);
   const [paused, setPaused] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const initializedRef = useRef(false);
@@ -100,16 +101,20 @@ export default function TrainingPage() {
     window.history.replaceState(null, '', `/training/${newSessionId}`);
 
     setBuyerPersona(d.buyerPersona as { name: string; difficulty: string } || null);
+    const market = d.market as { country?: string; countryCode?: string; language?: string } | undefined;
+    setCountry(market?.country ? { name: market.country, code: market.countryCode || '' } : null);
     setCurrentState('INITIAL');
     setRunningScore(100);
     setDeductions([]);
 
-    // Add greeting message
+    // Add greeting message with translation
     const greeting = (d.buyerGreeting as string) || 'Hi!';
+    const greetingTranslation = (d.buyerGreetingTranslation as string) || undefined;
     setMessages([{
       id: 'greeting',
       role: 'buyer',
       content: greeting,
+      translation: greetingTranslation,
       messageOrder: 1,
     }]);
     setStarting(false);
@@ -200,6 +205,10 @@ export default function TrainingPage() {
       const d = data.data;
 
       // Add AI response
+      // Update country if provided
+      if (d.countryName) {
+        setCountry({ name: d.countryName, code: d.countryCode || '' });
+      }
       const aiMsg: ChatMsg = {
         id: `ai-${Date.now()}`,
         role: 'buyer',
@@ -273,6 +282,22 @@ export default function TrainingPage() {
     return labels[dim] || dim;
   };
 
+  const countryFlag = (code: string) => {
+    if (!code) return '';
+    const flags: Record<string, string> = {
+      'ES': '\u{1F1EA}\u{1F1F8}',
+      'PT': '\u{1F1F5}\u{1F1F9}',
+      'PL': '\u{1F1F5}\u{1F1F1}',
+      'CZ': '\u{1F1E8}\u{1F1FF}',
+      'GR': '\u{1F1EC}\u{1F1F7}',
+      'HR': '\u{1F1ED}\u{1F1F7}',
+      'IT': '\u{1F1EE}\u{1F1F9}',
+      'SK': '\u{1F1F8}\u{1F1F0}',
+      'GB': '\u{1F1EC}\u{1F1E7}',
+    };
+    return flags[code.toUpperCase()] || '';
+  };
+
   if (starting) {
     return (
       <div className="min-h-screen bg-[#0a0a0f] flex items-center justify-center">
@@ -293,8 +318,13 @@ export default function TrainingPage() {
             &larr;
           </Link>
           <div>
-            <div className="text-white text-sm font-semibold">
+            <div className="text-white text-sm font-semibold flex items-center gap-1.5">
               {buyerPersona?.name || 'Training'}
+              {country && (
+                <span className="text-xs text-[#888899]">
+                  {countryFlag(country.code)} {country.name}
+                </span>
+              )}
             </div>
             <div className="text-[#888899] text-xs">{currentState}</div>
           </div>
@@ -366,7 +396,12 @@ export default function TrainingPage() {
                   }`}
                 >
                   <div className="text-xs text-[#888899] mb-1">
-                    {msg.role === 'seller' ? 'You' : (buyerPersona?.name || 'Buyer')}
+                    {msg.role === 'seller' ? 'You' : (
+                      <span>
+                        {buyerPersona?.name || 'Buyer'}
+                        {country && <span className="ml-1">{countryFlag(country.code)}</span>}
+                      </span>
+                    )}
                   </div>
                   <div className="text-sm leading-relaxed whitespace-pre-wrap">{msg.content}</div>
                   {msg.translation && msg.role === 'buyer' && (

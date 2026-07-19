@@ -293,6 +293,25 @@ export async function POST(request: NextRequest) {
     greeting = getFallbackGreeting((market.language as string) || 'en');
   }
 
+  // === Step 9: Translate greeting to Chinese ===
+  let greetingTranslation = '';
+  const marketLang = (market.language as string) || 'en';
+  if (marketLang && !['zh', 'zh-CN', 'zh-TW', 'zh-cn', 'zh-tw'].includes(marketLang)) {
+    try {
+      const { LLMAdapter } = await import('@/lib/llm/llm-adapter');
+      const llm = new LLMAdapter();
+      const translationPrompt = 'Translate the following message to Chinese (简体中文). Only return the translation, nothing else:\n\n' + greeting;
+      greetingTranslation = await llm.invoke(
+        [{ role: 'user', content: translationPrompt }],
+        { overrides: { temperature: 0.3 } }
+      );
+      greetingTranslation = greetingTranslation.trim();
+    } catch (err) {
+      console.warn('[Start] Greeting translation failed:', err);
+      greetingTranslation = '';
+    }
+  }
+
   return NextResponse.json({
     success: true,
     data: {
@@ -313,8 +332,10 @@ export async function POST(request: NextRequest) {
         effectiveDifficulty: dynamicBuyer.effectiveDifficulty,
       },
       scenarioSeed: dynamicBuyer.scenarioSeed.seedText,
+      buyerGreetingTranslation: greetingTranslation || null,
       market: {
         country: market.country_name,
+        countryCode: market.country_code,
         language: market.language,
       },
       scenario: scenario ? { name: scenario.name, description: scenario.description } : null,

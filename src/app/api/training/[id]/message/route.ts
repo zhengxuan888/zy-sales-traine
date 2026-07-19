@@ -226,6 +226,8 @@ export async function POST(
       data: {
         aiMessage: buyerContent,
         aiTranslation: buyerTranslation,
+        countryName: marketConfig?.country_name || (marketConfigData?.countryName) || null,
+        countryCode: marketConfig?.country_code || (marketConfigData?.countryCode) || null,
         newState: result.state,
         scoreSignals: ruleResult.signals,
         deductions: ruleResult.deductions.map(d => ({
