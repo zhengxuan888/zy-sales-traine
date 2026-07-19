@@ -146,7 +146,7 @@ export const PRESETS: Record<string, PresetConfig> = {
     name: 'Coach Review',
     description: 'Detailed coaching analysis',
     temperature: 0.4,
-    maxTokens: 2000,
+    maxTokens: 4000,
     topP: 0.9,
     frequencyPenalty: 0.1,
     presencePenalty: 0.1,
