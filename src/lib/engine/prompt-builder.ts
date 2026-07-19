@@ -68,9 +68,13 @@ ${trustStatus ? `Current trust stages:\n${trustStatus.map(s => `- ${s.stage}: ${
 ${memorySummary}`;
 
   // Module 4: Negotiation Strategy
+  // Difficulty-based negotiation targets (lower difficulty = more lenient buyer)
+  const diff = buyerPersona?.difficulty || 2;
+  const targetPct = diff <= 2 ? 0.88 : diff >= 4 ? 0.72 : 0.78;
+  const acceptablePct = diff <= 2 ? 0.92 : diff >= 4 ? 0.82 : 0.88;
   const negotiationModule = `## Negotiation Strategy
-- Initial target: ${listedPrice ? Math.round(listedPrice * 0.75) : '20-25%'} below listed price
-- Acceptable range: ${listedPrice ? Math.round(listedPrice * 0.85) : '10-15%'} below listed
+- Initial target: ${listedPrice ? Math.round(listedPrice * targetPct) : diff <= 2 ? '8-12%' : '20-25%'} of listed price
+- Acceptable range: ${listedPrice ? Math.round(listedPrice * acceptablePct) : diff <= 2 ? '5-8%' : '10-15%'} below listed
 - Walk away if: seller is rude, won't budge at all, or seems fake
 - Use tactics: compare with other listings, mention budget constraints, ask "what's your best price?"
 - ${marketConfig?.codSupported ? 'Prefer COD (Cash on Delivery) for payment security' : 'Ask about payment options'}`;

@@ -70,14 +70,14 @@ export class TrainingEngine {
       id: (persona?.id as string) || '',
       name: (persona?.name as string) || 'Skeptical Buyer',
       personalityTraits: {
-        aggressiveness: pt.aggressiveness ?? 3,
-        patience: pt.patience ?? 3,
-        suspicionLevel: pt.suspicion_level ?? pt.suspicionLevel ?? 3,
+        aggressiveness: pt.aggressiveness ?? 2,
+        patience: pt.patience ?? 4,
+        suspicionLevel: pt.suspicion_level ?? pt.suspicionLevel ?? 2,
       },
       language: (persona?.language as string) || 'es',
       openingMessage: (persona?.opening_message as string) || 'Hola, sigue disponible?',
       behaviorRules: (persona?.behavior_rules as Record<string, unknown>) || {},
-      difficulty: (persona?.difficulty as number) || 3,
+      difficulty: (persona?.difficulty as number) || 2,
     };
 
     this.marketConfig = {
@@ -168,14 +168,14 @@ export class TrainingEngine {
         id: (persona.id as string) || '',
         name: (persona.name as string) || 'Buyer',
         personalityTraits: {
-          aggressiveness: pt.aggressiveness ?? 3,
-          patience: pt.patience ?? 3,
-          suspicionLevel: pt.suspicion_level ?? pt.suspicionLevel ?? 3,
+          aggressiveness: pt.aggressiveness ?? 2,
+          patience: pt.patience ?? 4,
+          suspicionLevel: pt.suspicion_level ?? pt.suspicionLevel ?? 2,
         },
         language: (persona.language as string) || 'es',
         openingMessage: (persona.opening_message as string) || '',
         behaviorRules: (persona.behavior_rules as Record<string, unknown>) || {},
-        difficulty: (persona.difficulty as number) || 3,
+        difficulty: (persona.difficulty as number) || 2,
       };
     }
 
