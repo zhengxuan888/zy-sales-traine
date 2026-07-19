@@ -20,6 +20,7 @@ interface ChatMsg {
   translation?: string;
   messageOrder: number;
   deductions?: Deduction[];
+  imageDescription?: string;
 }
 
 export default function TrainingPage() {
@@ -42,6 +43,8 @@ export default function TrainingPage() {
   const [buyerPersona, setBuyerPersona] = useState<{ name: string; difficulty: string } | null>(null);
   const [country, setCountry] = useState<{ name: string; code: string } | null>(null);
   const [paused, setPaused] = useState(false);
+  const [showPhotoInput, setShowPhotoInput] = useState(false);
+  const [photoDesc, setPhotoDesc] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const initializedRef = useRef(false);
 
@@ -142,7 +145,7 @@ export default function TrainingPage() {
       setBuyerPersona(session.buyerPersona?.name ? { name: session.buyerPersona.name, difficulty: 'medium' } : null);
       setRunningScore(session.runningScore ?? 100);
 
-      // Load messages
+      // Load messages - extract imageDescription from metadata
       const msgs = session.messages || [];
       if (msgs.length > 0) {
         setMessages(msgs.map((m: Record<string, unknown>, i: number) => ({
@@ -152,6 +155,7 @@ export default function TrainingPage() {
           translation: String(m.translation || ''),
           messageOrder: (m.messageOrder as number) || i + 1,
           deductions: (m.deductions as Array<{dimension: string; points: number; reason: string; severity: string; messageRef: number}>) || [],
+          imageDescription: (m.imageDescription as string) || undefined,
         })));
       } else {
         setMessages([{
@@ -234,6 +238,74 @@ export default function TrainingPage() {
       }
     } catch (err) {
       console.error('Send error:', err);
+      setError('Network error. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleSendPhoto() {
+    const trimmed = photoDesc.trim();
+    if (!trimmed || loading || paused) return;
+
+    setPhotoDesc('');
+    setShowPhotoInput(false);
+    setLoading(true);
+    setError('');
+
+    // Add user photo message to display immediately
+    const userMsg: ChatMsg = {
+      id: `user-${Date.now()}`,
+      role: 'seller',
+      content: trimmed,
+      messageOrder: messages.length + 1,
+      imageDescription: trimmed,
+    };
+    setMessages(prev => [...prev, userMsg]);
+
+    try {
+      const res = await fetch(`/api/training/${sessionId}/message`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: trimmed, imageDescription: trimmed }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        const errorMsg = data.message || 'Failed to send message';
+        setError(errorMsg);
+        setLoading(false);
+        return;
+      }
+
+      const d = data.data;
+
+      if (d.countryName) {
+        setCountry({ name: d.countryName, code: d.countryCode || '' });
+      }
+      const aiMsg: ChatMsg = {
+        id: `ai-${Date.now()}`,
+        role: 'buyer',
+        content: d.aiMessage || 'OK',
+        translation: d.aiTranslation || undefined,
+        messageOrder: messages.length + 2,
+      };
+      setMessages(prev => [...prev, aiMsg]);
+
+      if (d.deductions && d.deductions.length > 0) {
+        setDeductions(prev => [...prev, ...d.deductions]);
+      }
+
+      if (typeof d.runningScore === 'number') {
+        setRunningScore(d.runningScore);
+      }
+
+      if (d.newState) {
+        setCurrentState(d.newState);
+      }
+    } catch (err) {
+      console.error('Send photo error:', err);
       setError('Network error. Please try again.');
     } finally {
       setLoading(false);
@@ -390,9 +462,11 @@ export default function TrainingPage() {
               >
                 <div
                   className={`max-w-[80%] rounded-2xl px-4 py-3 ${
-                    msg.role === 'seller'
-                      ? 'bg-[#00ff88]/10 border border-[#00ff88]/30 text-white'
-                      : 'bg-[#141420] border border-[#1e1e2e] text-[#e0e0e0]'
+                    msg.imageDescription
+                      ? 'bg-[#1a1a2e] border border-[#4488ff]/40 text-white'
+                      : msg.role === 'seller'
+                        ? 'bg-[#00ff88]/10 border border-[#00ff88]/30 text-white'
+                        : 'bg-[#141420] border border-[#1e1e2e] text-[#e0e0e0]'
                   }`}
                 >
                   <div className="text-xs text-[#888899] mb-1">
@@ -403,7 +477,19 @@ export default function TrainingPage() {
                       </span>
                     )}
                   </div>
-                  <div className="text-sm leading-relaxed whitespace-pre-wrap">{msg.content}</div>
+                  {msg.imageDescription ? (
+                    <div>
+                      <div className="flex items-start gap-2">
+                        <span className="text-lg mt-0.5">📷</span>
+                        <div>
+                          <div className="text-xs text-[#4488ff] mb-1 font-medium">Photo</div>
+                          <div className="text-sm leading-relaxed">{msg.imageDescription}</div>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-sm leading-relaxed whitespace-pre-wrap">{msg.content}</div>
+                  )}
                   {msg.translation && msg.role === 'buyer' && (
                     <div className="mt-2 pt-2 border-t border-[#1e1e2e] text-xs text-[#4488ff]">
                       📝 {msg.translation}
@@ -439,24 +525,61 @@ export default function TrainingPage() {
 
           {/* Input */}
           <div className="border-t border-[#1e1e2e] px-4 py-3 bg-[#0a0a0f]">
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
-                placeholder="Type your reply..."
-                disabled={loading || paused}
-                className="flex-1 bg-[#141420] border border-[#1e1e2e] rounded-xl px-4 py-3 text-white text-sm placeholder:text-[#888899] focus:outline-none focus:border-[#00ff88]/50 disabled:opacity-50"
-              />
-              <button
-                onClick={handleSend}
-                disabled={loading || paused || !input.trim()}
-                className="px-5 py-3 bg-[#00ff88] text-black font-semibold rounded-xl text-sm hover:bg-[#00ff88]/90 disabled:opacity-30 disabled:cursor-not-allowed"
-              >
-                Send
-              </button>
-            </div>
+            {showPhotoInput ? (
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={photoDesc}
+                  onChange={(e) => setPhotoDesc(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendPhoto(); } }}
+                  placeholder="描述照片内容，如：手机背面，有轻微划痕"
+                  disabled={loading || paused}
+                  autoFocus
+                  className="flex-1 bg-[#1a1a2e] border border-[#4488ff]/40 rounded-xl px-4 py-3 text-white text-sm placeholder:text-[#888899] focus:outline-none focus:border-[#4488ff]/60 disabled:opacity-50"
+                />
+                <button
+                  onClick={handleSendPhoto}
+                  disabled={loading || paused || !photoDesc.trim()}
+                  className="px-5 py-3 bg-[#4488ff] text-white font-semibold rounded-xl text-sm hover:bg-[#4488ff]/90 disabled:opacity-30 disabled:cursor-not-allowed"
+                >
+                  Send Photo
+                </button>
+                <button
+                  onClick={() => { setShowPhotoInput(false); setPhotoDesc(''); }}
+                  disabled={loading || paused}
+                  className="px-3 py-3 bg-[#141420] border border-[#1e1e2e] rounded-xl text-[#888899] text-sm hover:text-white disabled:opacity-50"
+                >
+                  ✕
+                </button>
+              </div>
+            ) : (
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setShowPhotoInput(true)}
+                  disabled={loading || paused}
+                  className="px-4 py-3 bg-[#141420] border border-[#1e1e2e] rounded-xl text-lg hover:border-[#4488ff]/50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  title="发送照片"
+                >
+                  📷
+                </button>
+                <input
+                  type="text"
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
+                  placeholder="Type your reply..."
+                  disabled={loading || paused}
+                  className="flex-1 bg-[#141420] border border-[#1e1e2e] rounded-xl px-4 py-3 text-white text-sm placeholder:text-[#888899] focus:outline-none focus:border-[#00ff88]/50 disabled:opacity-50"
+                />
+                <button
+                  onClick={handleSend}
+                  disabled={loading || paused || !input.trim()}
+                  className="px-5 py-3 bg-[#00ff88] text-black font-semibold rounded-xl text-sm hover:bg-[#00ff88]/90 disabled:opacity-30 disabled:cursor-not-allowed"
+                >
+                  Send
+                </button>
+              </div>
+            )}
           </div>
         </div>
 

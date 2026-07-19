@@ -204,16 +204,33 @@ export function buildBuyerUserMessage(
   currentState: ConversationState,
   memory: BuyerMemory
 ): string {
+  // Format history - detect photo messages and format them specially
   const historyText = conversationHistory
-    .map(m => `${m.role === 'buyer' ? 'Buyer' : 'Seller'}: ${m.content}`)
+    .map(m => {
+      if (m.role !== 'buyer' && m.content.startsWith('[Photo:')) {
+        // Extract photo description from [Photo: description] content
+        const match = m.content.match(/^\[Photo:\s*(.+?)\]/);
+        const photoDesc = match ? match[1] : m.content;
+        return `Seller: [Sent a photo: ${photoDesc}]`;
+      }
+      return `${m.role === 'buyer' ? 'Buyer' : 'Seller'}: ${m.content}`;
+    })
     .join('\n');
+
+  // Check if the last seller message is a photo message
+  const lastMessage = conversationHistory[conversationHistory.length - 1];
+  const isLastMessagePhoto = lastMessage && lastMessage.role !== 'buyer' && lastMessage.content.startsWith('[Photo:');
+
+  const photoInstruction = isLastMessagePhoto
+    ? `\n\n📸 PHOTO REACTION: The seller just sent a photo. React to it naturally - comment on what you see, ask questions about the product condition, or mention any concerns. Don't say "I can't see photos" or "I can't see images" - pretend you saw the photo and respond as if you're looking at it right now.`
+    : '';
 
   return `Conversation so far:
 ${historyText}
 
 Current state: ${currentState}
 Buyer memory: ${getMemorySummary(memory)}
-
+${photoInstruction}
 Now respond as the buyer. Remember:
 - Keep it SHORT (1-3 sentences)
 - Sound natural and casual

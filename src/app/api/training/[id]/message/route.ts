@@ -12,7 +12,7 @@ export async function POST(
   try {
     const { id } = await params;
     const body = await request.json();
-    const { content } = body;
+    const { content, imageDescription } = body;
 
     if (!content || typeof content !== 'string' || content.trim().length === 0) {
       return NextResponse.json(
@@ -74,6 +74,30 @@ export async function POST(
       .eq('training_id', id)
       .order('message_order', { ascending: true });
 
+    // Build conversation history for engine
+    // - For existing messages with imageDescription in metadata, add [Photo:] marker
+    // - Append the new seller message so the AI can see and respond to it
+    const historyForEngine = (existingMessages || []).map((m: Record<string, unknown>) => {
+      const metadata = m.metadata as { imageDescription?: string } | null;
+      if (metadata?.imageDescription && m.role === 'seller') {
+        return { ...m, content: `[Photo: ${metadata.imageDescription}] ${m.content}` };
+      }
+      return m;
+    });
+
+    // Build the new seller message content for the engine
+    // If imageDescription exists, prepend [Photo:] marker so the prompt builder can detect it
+    const engineMessage = imageDescription
+      ? `[Photo: ${imageDescription}] ${content.trim()}`
+      : content.trim();
+
+    // Append the new seller message to the history so the AI can see it
+    historyForEngine.push({
+      role: 'seller',
+      content: engineMessage,
+      message_order: (existingMessages?.length || 0) + 1,
+    });
+
     // Load engine state from session
     const engine = new TrainingEngine();
     engine.loadState({
@@ -81,7 +105,8 @@ export async function POST(
       buyerPersona: sessionData.buyer_persona_id ? { id: sessionData.buyer_persona_id } : null,
       marketConfig: sessionData.market_config_id ? { id: sessionData.market_config_id } : null,
       scenarioConfig: sessionData.scenario_id ? { id: sessionData.scenario_id } : null,
-      conversationHistory: (existingMessages || []).map((m: Record<string, unknown>) => m),
+      conversationHistory: historyForEngine,
+      // Keep currentTurn as existingMessages.length (NOT +1) so scoring uses correct message order
       currentTurn: (existingMessages?.length || 0),
       memory: sessionData.memory || undefined,
       currentState: sessionData.current_state || undefined,
@@ -90,16 +115,20 @@ export async function POST(
     });
 
     // Process message through engine
-    const result = await engine.processMessage(content.trim());
+    const result = await engine.processMessage(engineMessage);
 
-    // Save user message
+    // Save user message - with metadata if imageDescription exists
     const userMsgOrder = (existingMessages?.length || 0) + 1;
-    await client.from('chat_message').insert({
+    const insertData: Record<string, unknown> = {
       training_id: id,
       role: 'seller',
       content: content.trim(),
       message_order: userMsgOrder,
-    });
+    };
+    if (imageDescription) {
+      insertData.metadata = { imageDescription };
+    }
+    await client.from('chat_message').insert(insertData);
 
     // Run Rule Engine on seller message for real-time scoring
     const defaultTrust = { level: 0, evidence: [] };
@@ -155,7 +184,7 @@ export async function POST(
 
       // Retry LLM generation
       try {
-        const retryResult = await engine.processMessage(content.trim());
+        const retryResult = await engine.processMessage(engineMessage);
         buyerContent = retryResult.buyerResponse;
       } catch {
         // If retry fails, use fallback
