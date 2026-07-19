@@ -9,7 +9,7 @@ export async function POST(request: NextRequest) {
 
     if (!email || !password) {
       return NextResponse.json(
-        { success: false, error: "请输入邮箱和密码" },
+        { success: false, error: "请输入账号和密码" },
         { status: 400 }
       );
     }
@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
 
     if (error || !user) {
       return NextResponse.json(
-        { success: false, error: "邮箱或密码错误" },
+        { success: false, error: "账号或密码错误" },
         { status: 401 }
       );
     }
@@ -50,7 +50,7 @@ export async function POST(request: NextRequest) {
     const isValid = bcrypt.compareSync(password, user.password);
     if (!isValid) {
       return NextResponse.json(
-        { success: false, error: "邮箱或密码错误" },
+        { success: false, error: "账号或密码错误" },
         { status: 401 }
       );
     }

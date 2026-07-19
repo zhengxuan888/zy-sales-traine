@@ -106,7 +106,7 @@ export async function POST(request: NextRequest) {
     // Validate input
     if (!name || !email || !password) {
       return NextResponse.json(
-        { success: false, error: '姓名、邮箱和密码都是必填项' },
+        { success: false, error: '姓名、账号和密码都是必填项' },
         { status: 400 }
       );
     }
@@ -129,7 +129,7 @@ export async function POST(request: NextRequest) {
 
     if (existing) {
       return NextResponse.json(
-        { success: false, error: '该邮箱已被注册' },
+        { success: false, error: '该账号已存在' },
         { status: 409 }
       );
     }

@@ -316,12 +316,12 @@ export default function AdminPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs text-[#888899] mb-1">邮箱</label>
+                  <label className="block text-xs text-[#888899] mb-1">账号</label>
                   <input
-                    type="email"
+                    type="text"
                     value={newEmail}
                     onChange={(e) => setNewEmail(e.target.value)}
-                    placeholder="employee@company.com"
+                    placeholder="输入登录账号（如：zhangsan）"
                     className="w-full bg-[#0a0a0f] border border-[#2a2a3a] rounded-lg px-3 py-2 text-white text-sm placeholder-[#555] focus:outline-none focus:border-[#00ff88] transition-colors"
                   />
                 </div>
