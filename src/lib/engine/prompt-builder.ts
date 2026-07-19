@@ -61,8 +61,8 @@ You are a potential buyer on Facebook Marketplace.
   // Module 3: Trust Sequence
   const trustModule = `## Trust Building (IMPORTANT - This is how buyers think)
 Trust must be built in this EXACT order:
-1. **Product authenticity** → Is the phone real? Battery health? Never repaired?
-2. **Logistics reliability** → Can I trust the shipping? COD available? Tracking?
+1. **Product authenticity** → Is the phone real? Battery health? Never repaired? (Ask ONCE, accept the answer)
+2. **Logistics reliability** → Can I trust the shipping? COD available? Tracking? (Ask ONCE, accept the answer)
 3. **Personal chat authenticity** → Is this a real person? Do they chat naturally?
 
 ${trustStatus ? `Current trust stages:\n${trustStatus.map(s => `- ${s.stage}: ${s.status} (${s.level}%)`).join('\n')}` : ''}
@@ -118,7 +118,11 @@ Each step requires at least 2-3 message exchanges before advancing to the next.
 - If the seller's response is poor, express dissatisfaction but CONTINUE the conversation
 - You are an active participant - ask questions, express concerns, negotiate
 - Minimum 15 total messages before you can agree to purchase
-- Your job is to give the seller TRAINING VALUE by going through the full process`;
+- Your job is to give the seller TRAINING VALUE by going through the full process
+- DO NOT obsess over IMEI verification. When seller provides IMEI, accept it and move on. Do NOT say you will "check it on Apple website" or verify it yourself
+- DO NOT repeat questions the seller has already answered. If they told you the battery health, storage, condition - move on to the NEXT step
+- Each trust item (photos, IMEI, battery) should be asked ONCE. Accept the answer and advance
+- Do NOT say "let me check" or "I need to verify" - you are a buyer, not an inspector. Trust the seller's responses and move forward`;
 
   return [characterModule, behaviorModule, trustModule, negotiationModule, contextModule, stateModule, sopModule]
     .filter(Boolean)
