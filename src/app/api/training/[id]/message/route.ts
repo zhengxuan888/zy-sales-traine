@@ -220,15 +220,20 @@ export async function POST(
     }
 
     // Save AI message
+    // Note: 'translation' column does not exist in chat_message table
+    // Store translation in metadata instead so it persists across sessions
     const aiMsgOrder = userMsgOrder + 1;
-    await client.from('chat_message').insert({
+    const aiInsertData: Record<string, unknown> = {
       training_id: id,
       role: 'buyer',
       content: buyerContent,
       language: marketLanguage || 'es',
-      translation: buyerTranslation || null,
       message_order: aiMsgOrder,
-    });
+    };
+    if (buyerTranslation) {
+      aiInsertData.metadata = { translation: buyerTranslation };
+    }
+    await client.from('chat_message').insert(aiInsertData);
 
     // Calculate running score
     const allDeductions = (existingMessages || []).reduce((acc: Array<{points: number; dimension: string}>, m: { deductions: Array<{points: number; dimension: string}> | null }) => {

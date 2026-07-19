@@ -51,9 +51,10 @@ export async function GET(
     }
 
     // Get chat messages - include metadata for imageDescription
+    // Note: 'translation' column does not exist in the table, so we omit it
     const { data: messages, error: msgError } = await client
       .from('chat_message')
-      .select('id, role, content, translation, language, message_order, deduction_points, is_flagged, created_at, metadata')
+      .select('id, role, content, language, message_order, deduction_points, is_flagged, created_at, metadata')
       .eq('training_id', id)
       .order('message_order', { ascending: true });
 
@@ -85,12 +86,12 @@ export async function GET(
           language: marketLanguage,
         },
         messages: (messages || []).map((m: Record<string, unknown>) => {
-          const metadata = m.metadata as { imageDescription?: string } | null;
+          const metadata = m.metadata as { imageDescription?: string; translation?: string } | null;
           return {
             id: m.id,
             role: m.role,
             content: m.content,
-            translation: m.translation || '',
+            translation: metadata?.translation || '',
             language: m.language || 'es',
             messageOrder: m.message_order,
             deductions: m.deduction_points || [],
