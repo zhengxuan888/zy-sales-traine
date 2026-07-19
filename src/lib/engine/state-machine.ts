@@ -111,14 +111,20 @@ export function detectStateTransition(
   const msgLower = buyerMessage.toLowerCase();
 
   // Check for ghosting signals (only after at least 4 messages to avoid premature ghosting)
-  if (currentState !== 'GHOSTED' && currentState !== 'COMPLETED' && _messageHistory.length >= 4) {
-    if (buyerMemory.purchaseIntent < 20 && buyerMemory.overallTrust < 30) {
+  if (currentState !== 'GHOSTED' && currentState !== 'COMPLETED' && _messageHistory.length >= 10) {
+    if (buyerMemory.purchaseIntent < 10 && buyerMemory.overallTrust < 15) {
       return 'GHOSTED';
     }
   }
 
-  // State-specific transition detection
+  // State-specific transition detection with minimum message count guards
+  const msgCount = _messageHistory.length;
   for (const transition of config.transitions) {
+    // Prevent premature transitions - ensure full conversation flow
+    if (transition.to === 'CLOSING' && msgCount < 8) continue;
+    if (transition.to === 'COMPLETED' && msgCount < 12) continue;
+    if (transition.to === 'GHOSTED' && msgCount < 10) continue;
+    
     if (matchesTransition(transition.trigger, msgLower, buyerMemory, currentState)) {
       return transition.to;
     }
@@ -151,11 +157,11 @@ function matchesTransition(
     'trust established, buyer asks about delivery': () =>
       memory.overallTrust > 50 && /ship|deliver|when|cu[aá]ndo|kiedy|envio/i.test(msgLower),
     'buyer ready to purchase': () =>
-      memory.purchaseIntent > 75 && /buy|want|take|ok|deal|lo quiero|lo llevo|chce|biorę/i.test(msgLower),
+      memory.purchaseIntent > 70 && /buy|want|take|deal|lo quiero|lo llevo|chce|biorę|compro/i.test(msgLower),
     'trust broken by bad response': () =>
       memory.overallTrust < 30,
     'price agreed': () =>
-      /ok|deal|agreed|perfect|vale|trato|zgoda|ok.*price/i.test(msgLower),
+      /deal|agreed|trato|zgoda|ok.*price|vale.*precio/i.test(msgLower),
     'negotiation fails': () =>
       memory.priceSatisfaction.level < 30,
     'buyer stops responding after price discussion': () =>
@@ -165,7 +171,7 @@ function matchesTransition(
     'provide_fake_meetup_excuse': () => false,
     'describe_packaging': () => false,
     'logistics agreed': () =>
-      memory.logisticsReliability.level > 60 && /ok|perfect|vale|sounds good|genial/i.test(msgLower),
+      memory.logisticsReliability.level > 55 && /perfect|sounds good|genial|vale.*env|ok.*ship/i.test(msgLower),
     'buyer wants discount for shipping cost': () =>
       /shipping.*expensive|caro|drog/i.test(msgLower),
     'buyer refuses shipping terms': () =>

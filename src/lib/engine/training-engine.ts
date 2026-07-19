@@ -253,7 +253,8 @@ export class TrainingEngine {
 
     // Generate buyer reply
     let buyerReply: string;
-    if (this.currentState === 'COMPLETED' || this.currentState === 'GHOSTED') {
+    // Only use canned response for COMPLETED, or GHOSTED after 15+ messages
+    if (this.currentState === 'COMPLETED' || (this.currentState === 'GHOSTED' && this.messages.length >= 15)) {
       buyerReply = this.currentState === 'COMPLETED'
         ? 'Perfect! Deal done. Thanks!'
         : '...';
